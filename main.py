@@ -1,32 +1,22 @@
 from agents.data_agent import DataAgent
-from utils.claude_client import ask_claude
+from agents.draft_agent import DraftAgent
 
 def main():
-    agent = DataAgent()
-    agent.load_data()
+    data_agent = DataAgent()
+    data_agent.load_data()
 
-    season = agent.get_season_info()
-    print(f"\nTemporada: {season['season']} | Semana: {season['week']} | Estado: {season['season_type']}")
+    draft_agent = DraftAgent(data_agent)
 
-    # Obtener info de Brock Purdy
-    print("\nAnalizando a Brock Purdy...")
-    purdy = agent.get_player_info("Brock Purdy")[0]
+    # Simular ronda 1
+    print("\n=== RONDA 1 - Pick #3 de 4 ===")
+    print(draft_agent.recommend(round_number=1))
 
-    # Pedirle a Claude que analice al jugador
-    prompt = f"""
-    Analiza a este jugador de NFL para fantasy football:
-    
-    Nombre: {purdy['name']}
-    Posición: {purdy['position']}
-    Equipo: {purdy['team']}
-    Edad: {purdy['age']}
-    Años de experiencia: {purdy['years_exp']}
-    
-    Dame un análisis breve de su valor para fantasy en la temporada 2026.
-    """
+    # Simular que Mauro toma a CeeDee Lamb
+    draft_agent.add_to_roster("2374", "CeeDee Lamb", "WR")
 
-    respuesta = ask_claude(prompt, system_prompt="Eres un experto en NFL fantasy football. Tus análisis son concisos y directos.")
-    print(respuesta)
+    # Simular ronda 2
+    print("\n=== RONDA 2 - Pick #2 de 4 ===")
+    print(draft_agent.recommend(round_number=2))
 
 if __name__ == "__main__":
     main()
