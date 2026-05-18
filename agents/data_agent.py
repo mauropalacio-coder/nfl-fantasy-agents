@@ -112,3 +112,46 @@ class DataAgent:
             "player": player,
             "analysis": analysis
         }
+        
+    def get_top_players_by_position(self, position, limit=20):
+        """Retorna los jugadores de una posicion con datos completos, ordenados por experiencia."""
+        players = [
+            {
+                "id": pid,
+                "name": info.get("full_name"),
+                "team": info.get("team"),
+                "age": info.get("age"),
+                "years_exp": info.get("years_exp", 0),
+                "position": info.get("position"),
+            }
+            for pid, info in self.players.items()
+            if info.get("position") == position
+        ]
+
+        # Ordenar por años de experiencia (mas veteranos primero como proxy de relevancia)
+        players.sort(key=lambda x: x.get("years_exp") or 0, reverse=True)
+        return players[:limit]
+
+    def get_draft_pool(self, excluded_ids=None):
+        """Retorna el pool completo de jugadores disponibles para el draft con datos relevantes."""
+        if excluded_ids is None:
+            excluded_ids = []
+
+        pool = {}
+        for position in ["QB", "RB", "WR", "TE", "K", "DEF"]:
+            players = [
+                {
+                    "id": pid,
+                    "name": info.get("full_name"),
+                    "team": info.get("team"),
+                    "age": info.get("age"),
+                    "years_exp": info.get("years_exp", 0),
+                }
+                for pid, info in self.players.items()
+                if info.get("position") == position
+                and pid not in excluded_ids
+            ]
+            players.sort(key=lambda x: x.get("years_exp") or 0, reverse=True)
+            pool[position] = players
+
+        return pool
