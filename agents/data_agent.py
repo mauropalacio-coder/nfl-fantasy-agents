@@ -1,30 +1,60 @@
 import json
+import os
+from datetime import datetime, timedelta
 from utils.sleeper_api import get_all_players, get_nfl_state
 
 # Posiciones relevantes para fantasy
 RELEVANT_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"]
+
+# Caché local
+CACHE_DIR = "data"
+PLAYERS_CACHE_FILE = os.path.join(CACHE_DIR, "players_cache.json")
+CACHE_EXPIRY_HOURS = 24
 
 class DataAgent:
     def __init__(self):
         self.players = {}
         self.nfl_state = {}
 
-    def load_data(self):
-        """Carga y filtra jugadores relevantes para fantasy."""
-        print("Cargando datos de jugadores...")
-        all_players = get_all_players()
+    def _is_cache_valid(self):
+        """Verifica si el caché existe y es reciente."""
+        if not os.path.exists(PLAYERS_CACHE_FILE):
+            return False
+        modified_time = datetime.fromtimestamp(os.path.getmtime(PLAYERS_CACHE_FILE))
+        return datetime.now() - modified_time < timedelta(hours=CACHE_EXPIRY_HOURS)
+
+    def _save_cache(self, data):
+        """Guarda los jugadores en caché local."""
+        with open(PLAYERS_CACHE_FILE, "w") as f:
+            json.dump(data, f)
+        print("Caché guardado localmente.")
+
+    def _load_cache(self):
+        """Carga los jugadores desde caché local."""
+        with open(PLAYERS_CACHE_FILE, "r") as f:
+            return json.load(f)
+
+    def load_data(self, force_refresh=False):
+        """Carga jugadores desde caché o desde Sleeper API."""
         self.nfl_state = get_nfl_state()
 
-        # Filtrar solo jugadores activos y posiciones relevantes
-        self.players = {
-            player_id: info
-             for player_id, info in all_players.items()
-            if info.get("position") in RELEVANT_POSITIONS
-            and info.get("status") == "Active"
-            and info.get("team") is not None
-}
+        if not force_refresh and self._is_cache_valid():
+            print("Cargando jugadores desde caché local...")
+            self.players = self._load_cache()
+            print(f"Jugadores cargados desde caché: {len(self.players)}")
+        else:
+            print("Cargando jugadores desde Sleeper API...")
+            all_players = get_all_players()
+            self.players = {
+                player_id: info
+                for player_id, info in all_players.items()
+                if info.get("position") in RELEVANT_POSITIONS
+                and info.get("status") == "Active"
+                and info.get("team") is not None
+            }
+            self._save_cache(self.players)
+            print(f"Jugadores activos cargados: {len(self.players)}")
 
-        print(f"Jugadores activos cargados: {len(self.players)}")
         return self.players
 
     def get_player_info(self, name):
@@ -65,3 +95,19 @@ class DataAgent:
             "week": self.nfl_state.get("week"),
             "season_type": self.nfl_state.get("season_type"),
         }
+        
+    def get_all_player_info(self, name):
+        """Busca jugador en todos los jugadores sin filtro de status."""
+        from utils.sleeper_api import get_all_players
+        all_players = get_all_players()
+        name_lower = name.lower()
+        return [
+        {
+            "name": info.get("full_name"),
+            "position": info.get("position"),
+            "team": info.get("team"),
+            "status": info.get("status"),
+        }
+        for pid, info in all_players.items()
+        if name_lower in info.get("full_name", "").lower()
+    ]
