@@ -2,11 +2,12 @@ import json
 import os
 from datetime import datetime, timedelta
 from utils.sleeper_api import get_all_players, get_nfl_state
+from utils.claude_client import ask_claude
 
 # Posiciones relevantes para fantasy
 RELEVANT_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"]
 
-# Caché local
+# Cache local
 CACHE_DIR = "data"
 PLAYERS_CACHE_FILE = os.path.join(CACHE_DIR, "players_cache.json")
 CACHE_EXPIRY_HOURS = 24
@@ -17,31 +18,26 @@ class DataAgent:
         self.nfl_state = {}
 
     def _is_cache_valid(self):
-        """Verifica si el caché existe y es reciente."""
         if not os.path.exists(PLAYERS_CACHE_FILE):
             return False
         modified_time = datetime.fromtimestamp(os.path.getmtime(PLAYERS_CACHE_FILE))
         return datetime.now() - modified_time < timedelta(hours=CACHE_EXPIRY_HOURS)
 
     def _save_cache(self, data):
-        """Guarda los jugadores en caché local."""
         with open(PLAYERS_CACHE_FILE, "w") as f:
             json.dump(data, f)
-        print("Caché guardado localmente.")
+        print("Cache guardado localmente.")
 
     def _load_cache(self):
-        """Carga los jugadores desde caché local."""
         with open(PLAYERS_CACHE_FILE, "r") as f:
             return json.load(f)
 
     def load_data(self, force_refresh=False):
-        """Carga jugadores desde caché o desde Sleeper API."""
         self.nfl_state = get_nfl_state()
-
         if not force_refresh and self._is_cache_valid():
-            print("Cargando jugadores desde caché local...")
+            print("Cargando jugadores desde cache local...")
             self.players = self._load_cache()
-            print(f"Jugadores cargados desde caché: {len(self.players)}")
+            print(f"Jugadores cargados desde cache: {len(self.players)}")
         else:
             print("Cargando jugadores desde Sleeper API...")
             all_players = get_all_players()
@@ -54,11 +50,9 @@ class DataAgent:
             }
             self._save_cache(self.players)
             print(f"Jugadores activos cargados: {len(self.players)}")
-
         return self.players
 
     def get_player_info(self, name):
-        """Busca un jugador por nombre."""
         name_lower = name.lower()
         results = []
         for player_id, info in self.players.items():
@@ -75,7 +69,6 @@ class DataAgent:
         return results
 
     def get_players_by_position(self, position):
-        """Retorna todos los jugadores activos de una posición."""
         return [
             {
                 "id": pid,
@@ -89,25 +82,33 @@ class DataAgent:
         ]
 
     def get_season_info(self):
-        """Retorna el estado actual de la temporada."""
         return {
             "season": self.nfl_state.get("season"),
             "week": self.nfl_state.get("week"),
             "season_type": self.nfl_state.get("season_type"),
         }
-        
-    def get_all_player_info(self, name):
-        """Busca jugador en todos los jugadores sin filtro de status."""
-        from utils.sleeper_api import get_all_players
-        all_players = get_all_players()
-        name_lower = name.lower()
-        return [
-        {
-            "name": info.get("full_name"),
-            "position": info.get("position"),
-            "team": info.get("team"),
-            "status": info.get("status"),
+
+    def analyze_player(self, name):
+        players = self.get_player_info(name)
+        if not players:
+            return f"No se encontro ningun jugador con el nombre '{name}'."
+        player = players[0]
+        prompt = f"""
+        Analiza a este jugador de NFL para fantasy football temporada 2026:
+        Nombre: {player['name']}
+        Posicion: {player['position']}
+        Equipo: {player['team']}
+        Edad: {player['age']}
+        Anos de experiencia: {player['years_exp']}
+        Dame un analisis breve con:
+        - Valor general para fantasy
+        - Fortalezas y riesgos
+        - Ronda recomendada de draft
+        - Veredicto final
+        """
+        system_prompt = "Eres un experto en NFL fantasy football. Tus analisis son concisos, directos y utiles para tomar decisiones de draft."
+        analysis = ask_claude(prompt, system_prompt=system_prompt)
+        return {
+            "player": player,
+            "analysis": analysis
         }
-        for pid, info in all_players.items()
-        if name_lower in info.get("full_name", "").lower()
-    ]
