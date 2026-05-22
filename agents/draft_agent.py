@@ -17,7 +17,7 @@ ROSTER_SLOTS = {
     "FLEX": 1,
     "K": 1,
     "DEF": 1,
-    "BENCH": 7,  # 15 total - 8 starters = 7 bench
+    "BENCH": 7,
 }
 
 TOTAL_ROUNDS = 15
@@ -54,7 +54,6 @@ class DraftAgent:
             "position": position,
         })
         self.drafted_players.append(player_id)
-        print(f"Agregado al roster: {player_name} ({position})")
 
     def mark_as_drafted(self, player_id):
         """Marca un jugador como tomado por otro participante."""
@@ -98,7 +97,7 @@ class DraftAgent:
         return needs
 
     def recommend(self, round_number):
-        """Genera 4 recomendaciones de draft para la ronda actual."""
+        """Genera 5 recomendaciones de draft para la ronda actual."""
         roster_needs = self.get_roster_needs()
         reserved_qbs = list(RESERVED_QBS.values())
         my_qb = RESERVED_QBS["Mauro"]
@@ -169,8 +168,11 @@ class DraftAgent:
         5. En rondas tardias (10+) prioriza cubrir starters faltantes y banca util
         6. NO recomendar los QBs reservados para los amigos
         7. Si Mauro aun no tiene QB y {my_qb} esta disponible y es momento correcto, incluirlo
+        8. Recuerda que si un jugador ya fue tomado por un amigo no estara disponible,
+           pero como no sabemos exactamente quienes tomaron, recomienda los mejores disponibles
+           segun los datos y tu conocimiento de la NFL 2026
 
-        Dame 4 opciones rankeadas en este formato exacto:
+        Dame 5 opciones rankeadas en este formato exacto:
 
         OPCION 1: [Nombre] | [Posicion] | [Equipo]
         Razon: [explicacion breve]
@@ -183,9 +185,12 @@ class DraftAgent:
 
         OPCION 4: [Nombre] | [Posicion] | [Equipo]
         Razon: [explicacion breve]
+
+        OPCION 5: [Nombre] | [Posicion] | [Equipo]
+        Razon: [explicacion breve]
         """
 
         system_prompt = "Eres un experto en NFL fantasy football draft strategy. Das recomendaciones precisas y adaptadas al contexto del roster, los datos reales de los jugadores y el draft serpentina."
 
-        recommendation = ask_claude(prompt, system_prompt=system_prompt, max_tokens=1000)
+        recommendation = ask_claude(prompt, system_prompt=system_prompt, max_tokens=1200)
         return recommendation

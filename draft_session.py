@@ -1,93 +1,70 @@
 from agents.data_agent import DataAgent
 from agents.draft_agent import DraftAgent
 
-def find_player_id(data_agent, name):
-    """Busca el ID de un jugador por nombre."""
-    results = data_agent.get_player_info(name)
-    if results:
-        return results[0]["id"], results[0]["name"], results[0]["position"]
-    return None, None, None
-
-def get_input(prompt):
-    """Pide input al usuario y valida que no este vacio."""
-    while True:
-        value = input(prompt).strip()
-        if value:
-            return value
-        print("Debes ingresar algo. Intenta de nuevo.")
-
 def run_draft_session():
     print("\n" + "="*50)
     print("   NFL FANTASY DRAFT 2026 - ASISTENTE DE MAURO")
     print("="*50)
+    print("Draft serpentina | 15 rondas | 4 participantes")
+    print("Presiona Enter para avanzar a la siguiente ronda\n")
 
     # Inicializar agentes
     data_agent = DataAgent()
     data_agent.load_data()
     draft_agent = DraftAgent(data_agent)
 
-    current_round = 1
-    pick_in_round = 0
-    mauro_pick_position = draft_agent.get_pick_position(current_round)
+    for round_number in range(1, 16):
+        pick_position = draft_agent.get_pick_position(round_number)
+        picks_before_mauro = pick_position - 1
+        picks_after_mauro = 4 - pick_position
 
-    print(f"\nDraft serpentina | 15 rondas | 4 participantes")
-    print(f"Mauro empieza en pick #{mauro_pick_position} de cada ronda impar\n")
+        print("\n" + "="*50)
+        print(f"RONDA {round_number} de 15 | Tu pick: #{pick_position} de 4")
+        print("="*50)
+        print("\nGenerando recomendaciones...\n")
 
-    while current_round <= 15:
-        pick_in_round += 1
-        mauro_pick_position = draft_agent.get_pick_position(current_round)
+        recomendacion = draft_agent.recommend(round_number=round_number)
+        print(recomendacion)
 
-        if pick_in_round == mauro_pick_position:
-            # Turno de Mauro
-            print("\n" + "-"*50)
-            print(f"RONDA {current_round} - TURNO DE MAURO (Pick #{pick_in_round} de 4)")
-            print("-"*50)
-            print("\nGenerando recomendaciones...\n")
+        # Extraer jugadores recomendados para simular picks de amigos
+        lineas = recomendacion.split("\n")
+        opciones = []
+        for linea in lineas:
+            if linea.strip().startswith("OPCION") and "|" in linea:
+                partes = linea.split("|")
+                if len(partes) >= 2:
+                    nombre = partes[0].split(":")[-1].strip()
+                    opciones.append(nombre)
 
-            recomendacion = draft_agent.recommend(round_number=current_round)
-            print(recomendacion)
+        if round_number < 15:
+            input("\nPresiona Enter cuando hayas hecho tu pick para continuar...")
 
-            # Mauro ingresa su pick
-            nombre = get_input("\n¿A quien drafteas? (escribe el nombre del jugador)\n> ")
-            player_id, player_name, position = find_player_id(data_agent, nombre)
+            # Simular que los amigos tomaron las mejores opciones disponibles
+            # Picks antes de Mauro en esta ronda ya fueron tomados
+            # Picks despues de Mauro en esta ronda tambien se van
+            jugadores_tomados = picks_before_mauro + picks_after_mauro
 
-            if player_id:
-                draft_agent.add_to_roster(player_id, player_name, position)
-                print(f"✓ {player_name} ({position}) agregado a tu roster")
-            else:
-                print(f"Jugador '{nombre}' no encontrado en la base. Ingresalo manualmente:")
-                position = get_input("Posicion (QB/RB/WR/TE/K/DEF): ").upper()
-                draft_agent.add_to_roster(f"manual_{nombre}", nombre, position)
-                print(f"✓ {nombre} ({position}) agregado manualmente a tu roster")
+            for i in range(min(jugadores_tomados, len(opciones))):
+                nombre = opciones[i]
+                # Buscar el jugador en la base para marcarlo como draftado
+                results = data_agent.get_player_info(nombre)
+                if results:
+                    draft_agent.mark_as_drafted(results[0]["id"])
 
+            # Tambien marcar la opcion que presumiblemente tomo Mauro
+            # (la opcion 1 menos los que ya se fueron antes)
+            idx_mauro = picks_before_recomendados = picks_before_mauro
+            if idx_mauro < len(opciones):
+                nombre_mauro = opciones[idx_mauro]
+                results = data_agent.get_player_info(nombre_mauro)
+                if results:
+                    draft_agent.add_to_roster(
+                        results[0]["id"],
+                        results[0]["name"],
+                        results[0]["position"]
+                    )
         else:
-            # Turno de un amigo
-            print(f"\nRonda {current_round} - Pick #{pick_in_round} de 4 (amigo)")
-            nombre = get_input("¿Que jugador tomo tu amigo? (nombre o 'skip')\n> ")
-
-            if nombre.lower() != "skip":
-                player_id, player_name, _ = find_player_id(data_agent, nombre)
-                if player_id:
-                    draft_agent.mark_as_drafted(player_id)
-                    print(f"  Marcado como draftado: {player_name}")
-                else:
-                    print(f"  Jugador '{nombre}' no encontrado, continuando...")
-
-        # Avanzar ronda cuando se completaron 4 picks
-        if pick_in_round == 4:
-            pick_in_round = 0
-            current_round += 1
-            if current_round <= 15:
-                print(f"\n{'='*50}")
-                print(f"INICIANDO RONDA {current_round}")
-                print(f"{'='*50}")
-
-    # Mostrar roster final
-    print("\n" + "="*50)
-    print("DRAFT COMPLETADO - ROSTER FINAL DE MAURO")
-    print("="*50)
-    for p in draft_agent.my_roster:
-        print(f"  {p['position']:4} | {p['name']}")
+            print("\n¡Draft completado! Buena suerte en la temporada. 🏈")
 
 if __name__ == "__main__":
     run_draft_session()
