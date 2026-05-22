@@ -1,22 +1,39 @@
 from agents.data_agent import DataAgent
-from agents.draft_agent import DraftAgent
+from agents.weekly_agent import WeeklyAgent
 
 def main():
     data_agent = DataAgent()
     data_agent.load_data()
 
-    draft_agent = DraftAgent(data_agent)
+    weekly_agent = WeeklyAgent(data_agent)
 
-    # Simular ronda 1
-    print("\n=== RONDA 1 - Pick #3 de 4 ===")
-    print(draft_agent.recommend(round_number=1))
+    # Roster simulado de Mauro
+    roster = [
+        {"name": "Brock Purdy", "position": "QB", "team": "SF", "age": 26, "years_exp": 4},
+        {"name": "Christian McCaffrey", "position": "RB", "team": "SF", "age": 29, "years_exp": 9},
+        {"name": "Saquon Barkley", "position": "RB", "team": "PHI", "age": 29, "years_exp": 8},
+        {"name": "CeeDee Lamb", "position": "WR", "team": "DAL", "age": 26, "years_exp": 5},
+        {"name": "Amon-Ra St. Brown", "position": "WR", "team": "DET", "age": 25, "years_exp": 4},
+        {"name": "Sam LaPorta", "position": "TE", "team": "DET", "age": 24, "years_exp": 2},
+        {"name": "Josh Jacobs", "position": "RB", "team": "GB", "age": 27, "years_exp": 6},
+        {"name": "Jaylen Warren", "position": "RB", "team": "PIT", "age": 26, "years_exp": 3},
+        {"name": "Rashid Shaheed", "position": "WR", "team": "NO", "age": 26, "years_exp": 3},
+        {"name": "Jake Elliott", "position": "K", "team": "PHI", "age": 29, "years_exp": 8},
+        {"name": "San Francisco 49ers", "position": "DEF", "team": "SF", "age": None, "years_exp": None},
+    ]
 
-    # Simular que Mauro toma a CeeDee Lamb
-    draft_agent.add_to_roster("2374", "CeeDee Lamb", "WR")
+    print("\n=== WEEKLY LINEUP AGENT - SEMANA 5 ===")
+    print("Rival: Amigo 2\n")
 
-    # Simular ronda 2
-    print("\n=== RONDA 2 - Pick #2 de 4 ===")
-    print(draft_agent.recommend(round_number=2))
+    # Cambiar a la ruta de tu screenshot cuando tengas uno
+    # opponent_image_path="ruta/al/screenshot.png"
+    recomendacion = weekly_agent.recommend_lineup(
+        roster=roster,
+        week=5,
+        opponent_name="Amigo 2",
+        opponent_image_path=None  # Sin imagen por ahora
+    )
+    print(recomendacion)
 
 if __name__ == "__main__":
     main()
