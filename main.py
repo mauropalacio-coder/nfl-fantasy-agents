@@ -7,7 +7,7 @@ def main():
 
     weekly_agent = WeeklyAgent(data_agent)
 
-    # Roster simulado de Mauro
+    # Roster de Mauro
     roster = [
         {"name": "Brock Purdy", "position": "QB", "team": "SF", "age": 26, "years_exp": 4},
         {"name": "Christian McCaffrey", "position": "RB", "team": "SF", "age": 29, "years_exp": 9},
@@ -22,16 +22,28 @@ def main():
         {"name": "San Francisco 49ers", "position": "DEF", "team": "SF", "age": None, "years_exp": None},
     ]
 
+    # Roster manual del rival
+    opponent_roster = [
+        {"name": "Patrick Mahomes", "position": "QB", "team": "KC"},
+        {"name": "Derrick Henry", "position": "RB", "team": "BAL"},
+        {"name": "Alvin Kamara", "position": "RB", "team": "NO"},
+        {"name": "Davante Adams", "position": "WR", "team": "LAR"},
+        {"name": "Stefon Diggs", "position": "WR", "team": "HOU"},
+        {"name": "Travis Kelce", "position": "TE", "team": "KC"},
+        {"name": "Tony Pollard", "position": "RB", "team": "TEN"},
+        {"name": "Justin Tucker", "position": "K", "team": "BAL"},
+        {"name": "Dallas Cowboys", "position": "DEF", "team": "DAL"},
+    ]
+
     print("\n=== WEEKLY LINEUP AGENT - SEMANA 5 ===")
     print("Rival: Amigo 2\n")
 
-    # Cambiar a la ruta de tu screenshot cuando tengas uno
-    # opponent_image_path="ruta/al/screenshot.png"
     recomendacion = weekly_agent.recommend_lineup(
         roster=roster,
         week=5,
         opponent_name="Amigo 2",
-        opponent_image_path=None  # Sin imagen por ahora
+        opponent_roster=opponent_roster,
+        opponent_image_path=None
     )
     print(recomendacion)
 

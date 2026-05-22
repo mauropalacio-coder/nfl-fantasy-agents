@@ -1,3 +1,4 @@
+import json
 from utils.claude_client import ask_claude, ask_claude_with_image
 
 # Slots de titulares en NFL Fantasy estandar
@@ -40,18 +41,15 @@ class WeeklyAgent:
         }
         """
         system_prompt = "Eres un experto en NFL Fantasy Football. Extraes informacion precisa de screenshots de la app NFL Fantasy."
-        
+
         result = ask_claude_with_image(
             prompt=prompt,
             image_path=image_path,
             system_prompt=system_prompt,
             max_tokens=1000
         )
-        
-        # Parsear el JSON
-        import json
+
         try:
-            # Limpiar posible markdown
             clean = result.strip()
             if "```" in clean:
                 clean = clean.split("```")[1]
@@ -63,33 +61,31 @@ class WeeklyAgent:
             print(f"Respuesta raw: {result}")
             return {"starters": [], "bench": []}
 
-    def recommend_lineup(self, roster, week, opponent_name=None, opponent_image_path=None):
+    def recommend_lineup(self, roster, week, opponent_name=None, opponent_roster=None, opponent_image_path=None):
         """
         Recomienda el lineup optimo para la semana.
         roster: lista de jugadores del roster de Mauro
         week: numero de semana NFL
         opponent_name: nombre del rival
+        opponent_roster: lista manual de jugadores del rival
         opponent_image_path: path al screenshot del lineup del rival
         """
         if not roster:
             return "No hay jugadores en el roster para analizar."
 
-        # Extraer roster del rival si hay imagen
+        # Construir texto del rival
         opponent_roster_text = ""
         if opponent_image_path:
             print("Analizando lineup del rival desde screenshot...")
             opponent_data = self.extract_roster_from_image(opponent_image_path)
-            
             if opponent_data["starters"]:
                 opponent_roster_text = "\nLINEUP DEL RIVAL:\nTitulares:\n"
                 for p in opponent_data["starters"]:
                     opponent_roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
-                if opponent_data["bench"]:
-                    opponent_roster_text += "Bench:\n"
-                    for p in opponent_data["bench"]:
-                        opponent_roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
-            else:
-                opponent_roster_text = "\nNo se pudo extraer el lineup del rival del screenshot."
+        elif opponent_roster:
+            opponent_roster_text = "\nLINEUP DEL RIVAL:\nTitulares:\n"
+            for p in opponent_roster:
+                opponent_roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
         elif opponent_name:
             opponent_roster_text = f"\nRival de la semana: {opponent_name} (sin datos de su lineup)"
 
@@ -136,7 +132,7 @@ class WeeklyAgent:
 
         INSTRUCCIONES:
         1. Analiza cada jugador considerando edad, experiencia y equipo
-        2. Si tienes el lineup del rival, considera sus fortalezas y debilidades
+        2. Si tienes el lineup del rival considera sus fortalezas y debilidades
         3. Recomienda el lineup optimo de 8 titulares para esta semana
         4. Indica quien va al bench y por que
         5. Si hay dudas de lesion o rendimiento mencionalas
