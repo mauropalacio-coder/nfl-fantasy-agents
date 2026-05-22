@@ -8,7 +8,6 @@ def run_draft_session():
     print("Draft serpentina | 15 rondas | 4 participantes")
     print("Presiona Enter para avanzar a la siguiente ronda\n")
 
-    # Inicializar agentes
     data_agent = DataAgent()
     data_agent.load_data()
     draft_agent = DraftAgent(data_agent)
@@ -26,34 +25,31 @@ def run_draft_session():
         recomendacion = draft_agent.recommend(round_number=round_number)
         print(recomendacion)
 
-        # Extraer jugadores recomendados para simular picks de amigos
-        lineas = recomendacion.split("\n")
+        # Extraer nombres de jugadores recomendados
         opciones = []
-        for linea in lineas:
-            if linea.strip().startswith("OPCION") and "|" in linea:
-                partes = linea.split("|")
+        for linea in recomendacion.split("\n"):
+            linea_clean = linea.strip()
+            # Detectar lineas que empiecen con OPCION (con o sin acento, con o sin **)
+            linea_norm = linea_clean.replace("**", "").replace("Ó", "O").replace("ó", "o")
+            if linea_norm.upper().startswith("OPCION") and "|" in linea_norm:
+                partes = linea_norm.split("|")
                 if len(partes) >= 2:
                     nombre = partes[0].split(":")[-1].strip()
-                    opciones.append(nombre)
+                    if nombre:
+                        opciones.append(nombre)
 
         if round_number < 15:
             input("\nPresiona Enter cuando hayas hecho tu pick para continuar...")
 
-            # Simular que los amigos tomaron las mejores opciones disponibles
-            # Picks antes de Mauro en esta ronda ya fueron tomados
-            # Picks despues de Mauro en esta ronda tambien se van
-            jugadores_tomados = picks_before_mauro + picks_after_mauro
-
-            for i in range(min(jugadores_tomados, len(opciones))):
-                nombre = opciones[i]
-                # Buscar el jugador en la base para marcarlo como draftado
-                results = data_agent.get_player_info(nombre)
+            # Marcar jugadores tomados por amigos antes de Mauro
+            for i in range(min(picks_before_mauro, len(opciones))):
+                results = data_agent.get_player_info(opciones[i])
                 if results:
                     draft_agent.mark_as_drafted(results[0]["id"])
+                    print(f"  (Simulado: {results[0]['name']} tomado por amigo antes de tu pick)")
 
-            # Tambien marcar la opcion que presumiblemente tomo Mauro
-            # (la opcion 1 menos los que ya se fueron antes)
-            idx_mauro = picks_before_recomendados = picks_before_mauro
+            # Marcar el pick de Mauro (opcion despues de los picks de amigos)
+            idx_mauro = picks_before_mauro
             if idx_mauro < len(opciones):
                 nombre_mauro = opciones[idx_mauro]
                 results = data_agent.get_player_info(nombre_mauro)
@@ -63,8 +59,21 @@ def run_draft_session():
                         results[0]["name"],
                         results[0]["position"]
                     )
+                    print(f"  (Simulado: {results[0]['name']} agregado a tu roster)")
+
+            # Marcar jugadores tomados por amigos despues de Mauro
+            for i in range(picks_after_mauro):
+                idx = idx_mauro + 1 + i
+                if idx < len(opciones):
+                    results = data_agent.get_player_info(opciones[idx])
+                    if results:
+                        draft_agent.mark_as_drafted(results[0]["id"])
+                        print(f"  (Simulado: {results[0]['name']} tomado por amigo despues de tu pick)")
         else:
             print("\n¡Draft completado! Buena suerte en la temporada. 🏈")
+            print("\nROSTER FINAL DE MAURO:")
+            for p in draft_agent.my_roster:
+                print(f"  {p['position']:4} | {p['name']}")
 
 if __name__ == "__main__":
     run_draft_session()

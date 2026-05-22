@@ -96,6 +96,42 @@ class DraftAgent:
 
         return needs
 
+    def get_draft_strategy(self, round_number):
+        """Define la estrategia de draft segun la ronda actual."""
+        if round_number <= 4:
+            return """
+            ESTRATEGIA RONDAS 1-4 (Elite starters):
+            - Prioridad: RB y WR de elite
+            - NO tomar QB, K ni DEF todavia
+            - Solo considerar TE si es de primer nivel (Kelce, Andrews)
+            - Tomar el mejor jugador disponible en posiciones escasas
+            """
+        elif round_number <= 8:
+            return """
+            ESTRATEGIA RONDAS 5-8 (Completar starters):
+            - Completar los 2 RB starters si aun no los tienes
+            - Completar los 2 WR starters si aun no los tienes
+            - Tomar TE starter si aun no tienes uno
+            - Ronda 7-8 es el momento ideal para tomar a Brock Purdy
+            - Evitar K y DEF todavia
+            """
+        elif round_number <= 11:
+            return """
+            ESTRATEGIA RONDAS 9-11 (Mejor banca disponible):
+            - Cubrir banca con el mejor jugador disponible por posicion
+            - Priorizar RB y WR de banca con upside
+            - Si aun no tienes QB, tomarlo ahora si o si
+            - Considerar TE de banca si hay valor
+            """
+        else:
+            return """
+            ESTRATEGIA RONDAS 12-15 (Completar roster):
+            - Tomar K y DEF en estas rondas
+            - Completar banca con jugadores de upside o handcuffs
+            - Priorizar cubrir posiciones de starter que aun falten
+            - K y DEF son intercambiables, no gastar picks tempranos en ellos
+            """
+
     def recommend(self, round_number):
         """Genera 5 recomendaciones de draft para la ronda actual."""
         roster_needs = self.get_roster_needs()
@@ -104,6 +140,7 @@ class DraftAgent:
         pick_position = self.get_pick_position(round_number)
         picks_until_next = self.get_next_pick_info(round_number)
         rounds_remaining = TOTAL_ROUNDS - round_number
+        strategy = self.get_draft_strategy(round_number)
 
         # Roster summary
         roster_summary = "Roster actual de Mauro:\n"
@@ -137,6 +174,8 @@ class DraftAgent:
         NECESIDADES DEL ROSTER:
         {chr(10).join(roster_needs) if roster_needs else "Roster completo"}
 
+        {strategy}
+
         REGLA ESPECIAL DE LIGA - QBs reservados:
         - Mauro tomara a: {my_qb} (cuando sea el momento correcto en el draft)
         - NO recomendar estos QBs para Mauro: {', '.join([qb for qb in reserved_qbs if qb != my_qb])}
@@ -164,33 +203,30 @@ class DraftAgent:
         1. Usa los datos de edad y experiencia para evaluar el valor de cada jugador
         2. Considera cuantos picks hay hasta el proximo turno de Mauro
         3. Evalua si un jugador top puede desaparecer antes de su proximo pick
-        4. Considera las necesidades del roster sin sacrificar valor en rondas tempranas
-        5. En rondas tardias (10+) prioriza cubrir starters faltantes y banca util
-        6. NO recomendar los QBs reservados para los amigos
-        7. Si Mauro aun no tiene QB y {my_qb} esta disponible y es momento correcto, incluirlo
-        8. Recuerda que si un jugador ya fue tomado por un amigo no estara disponible,
-           pero como no sabemos exactamente quienes tomaron, recomienda los mejores disponibles
-           segun los datos y tu conocimiento de la NFL 2026
+        4. Sigue la estrategia definida para esta ronda
+        5. NO recomendar los QBs reservados para los amigos
+        6. Si es momento de tomar a {my_qb} segun la estrategia, incluirlo como opcion
+        7. Indica claramente si la recomendacion es para starter o banca
 
         Dame 5 opciones rankeadas en este formato exacto:
 
-        OPCION 1: [Nombre] | [Posicion] | [Equipo]
+        OPCION 1: [Nombre] | [Posicion] | [Equipo] | [Starter/Bench]
         Razon: [explicacion breve]
 
-        OPCION 2: [Nombre] | [Posicion] | [Equipo]
+        OPCION 2: [Nombre] | [Posicion] | [Equipo] | [Starter/Bench]
         Razon: [explicacion breve]
 
-        OPCION 3: [Nombre] | [Posicion] | [Equipo]
+        OPCION 3: [Nombre] | [Posicion] | [Equipo] | [Starter/Bench]
         Razon: [explicacion breve]
 
-        OPCION 4: [Nombre] | [Posicion] | [Equipo]
+        OPCION 4: [Nombre] | [Posicion] | [Equipo] | [Starter/Bench]
         Razon: [explicacion breve]
 
-        OPCION 5: [Nombre] | [Posicion] | [Equipo]
+        OPCION 5: [Nombre] | [Posicion] | [Equipo] | [Starter/Bench]
         Razon: [explicacion breve]
         """
 
-        system_prompt = "Eres un experto en NFL fantasy football draft strategy. Das recomendaciones precisas y adaptadas al contexto del roster, los datos reales de los jugadores y el draft serpentina."
+        system_prompt = "Eres un experto en NFL fantasy football draft strategy. Das recomendaciones precisas adaptadas al contexto del roster, la estrategia por ronda y el draft serpentina."
 
         recommendation = ask_claude(prompt, system_prompt=system_prompt, max_tokens=1200)
         return recommendation
