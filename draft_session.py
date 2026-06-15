@@ -10,6 +10,7 @@ def run_draft_session():
 
     data_agent = DataAgent()
     data_agent.load_data()
+    data_agent.load_player_rankings(seasons=[2023, 2024, 2025])
     draft_agent = DraftAgent(data_agent)
 
     for round_number in range(1, 16):
