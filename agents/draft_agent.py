@@ -29,25 +29,18 @@ class DraftAgent:
         self.drafted_players = []
 
     def get_pick_position(self, round_number):
-        """
-        Draft serpentina - Mauro empieza en pick #3 de 4.
-        Rondas impares: pick #3 (penultimo)
-        Rondas pares: pick #2 (segundo)
-        """
         if round_number % 2 == 1:
             return 3
         else:
             return 2
 
     def get_next_pick_info(self, round_number):
-        """Informa cuantos picks hay hasta el proximo turno de Mauro."""
         current_pos = self.get_pick_position(round_number)
         next_pos = self.get_pick_position(round_number + 1)
         picks_until_next = (4 - current_pos) + next_pos
         return picks_until_next
 
     def add_to_roster(self, player_id, player_name, position):
-        """Agrega un jugador al roster de Mauro."""
         self.my_roster.append({
             "id": player_id,
             "name": player_name,
@@ -56,12 +49,10 @@ class DraftAgent:
         self.drafted_players.append(player_id)
 
     def mark_as_drafted(self, player_id):
-        """Marca un jugador como tomado por otro participante."""
         if player_id not in self.drafted_players:
             self.drafted_players.append(player_id)
 
     def get_available_players(self):
-        """Retorna jugadores que aun no fueron draftados."""
         return {
             pid: info
             for pid, info in self.data_agent.players.items()
@@ -69,7 +60,6 @@ class DraftAgent:
         }
 
     def get_roster_needs(self):
-        """Analiza que posiciones necesita cubrir el roster."""
         counts = {"QB": 0, "RB": 0, "WR": 0, "TE": 0, "K": 0, "DEF": 0}
         for player in self.my_roster:
             pos = player["position"]
@@ -97,13 +87,12 @@ class DraftAgent:
         return needs
 
     def get_draft_strategy(self, round_number):
-        """Define la estrategia de draft segun la ronda actual."""
         if round_number <= 4:
             return """
             ESTRATEGIA RONDAS 1-4 (Elite starters):
             - Prioridad: RB y WR de elite
             - NO tomar QB, K ni DEF todavia
-            - Solo considerar TE si es de primer nivel (Kelce, Andrews)
+            - Solo considerar TE si es de primer nivel (Kittle, Bowers)
             - Tomar el mejor jugador disponible en posiciones escasas
             """
         elif round_number <= 8:
@@ -133,7 +122,6 @@ class DraftAgent:
             """
 
     def recommend(self, round_number):
-        """Genera 5 recomendaciones de draft para la ronda actual."""
         roster_needs = self.get_roster_needs()
         reserved_qbs = list(RESERVED_QBS.values())
         my_qb = RESERVED_QBS["Mauro"]
@@ -150,14 +138,24 @@ class DraftAgent:
         else:
             roster_summary += "  (vacio - primer pick)\n"
 
-        # Jugadores disponibles con datos completos
-        draft_pool = self.data_agent.get_draft_pool(excluded_ids=self.drafted_players)
+        # Usar pool rankeado por puntos reales si esta disponible
+        if self.data_agent.rankings:
+            draft_pool = self.data_agent.get_ranked_draft_pool(excluded_ids=self.drafted_players)
 
-        def format_players(players, limit=15):
-            return "\n".join([
-                f"  - {p['name']} | {p['team']} | Edad: {p['age']} | Exp: {p['years_exp']} anos"
-                for p in players[:limit]
-            ])
+            def format_players(players, limit=15):
+                return "\n".join([
+                    f"  - {p['name']} | {p.get('team', 'N/A')} | Edad: {p.get('age', 'N/A')} | {p['avg_pts']} pts/partido"
+                    for p in players[:limit]
+                ])
+        else:
+            # Fallback a pool por experiencia
+            draft_pool = self.data_agent.get_draft_pool(excluded_ids=self.drafted_players)
+
+            def format_players(players, limit=15):
+                return "\n".join([
+                    f"  - {p['name']} | {p.get('team', 'N/A')} | Edad: {p.get('age', 'N/A')} | Exp: {p.get('years_exp', 'N/A')} anos"
+                    for p in players[:limit]
+                ])
 
         prompt = f"""
         Eres el asistente de draft de Mauro en su liga de NFL Fantasy Football 2026.
@@ -180,7 +178,7 @@ class DraftAgent:
         - Mauro tomara a: {my_qb} (cuando sea el momento correcto en el draft)
         - NO recomendar estos QBs para Mauro: {', '.join([qb for qb in reserved_qbs if qb != my_qb])}
 
-        JUGADORES DISPONIBLES POR POSICION (ordenados por experiencia):
+        JUGADORES DISPONIBLES POR POSICION (ordenados por promedio de puntos reales 2023-2025):
         QBs:
         {format_players(draft_pool.get('QB', []), 15)}
 
@@ -200,13 +198,14 @@ class DraftAgent:
         {format_players(draft_pool.get('DEF', []), 10)}
 
         INSTRUCCIONES:
-        1. Usa los datos de edad y experiencia para evaluar el valor de cada jugador
-        2. Considera cuantos picks hay hasta el proximo turno de Mauro
-        3. Evalua si un jugador top puede desaparecer antes de su proximo pick
-        4. Sigue la estrategia definida para esta ronda
-        5. NO recomendar los QBs reservados para los amigos
-        6. Si es momento de tomar a {my_qb} segun la estrategia, incluirlo como opcion
-        7. Indica claramente si la recomendacion es para starter o banca
+        1. Los jugadores estan ordenados por promedio de puntos fantasy reales de las ultimas 3 temporadas
+        2. Usa estos datos como base principal para tus recomendaciones
+        3. Considera cuantos picks hay hasta el proximo turno de Mauro
+        4. Evalua si un jugador top puede desaparecer antes de su proximo pick
+        5. Sigue la estrategia definida para esta ronda
+        6. NO recomendar los QBs reservados para los amigos
+        7. Si es momento de tomar a {my_qb} segun la estrategia, incluirlo como opcion
+        8. Indica claramente si la recomendacion es para starter o banca
 
         Dame 5 opciones rankeadas en este formato exacto:
 
@@ -226,7 +225,7 @@ class DraftAgent:
         Razon: [explicacion breve]
         """
 
-        system_prompt = "Eres un experto en NFL fantasy football draft strategy. Das recomendaciones precisas adaptadas al contexto del roster, la estrategia por ronda y el draft serpentina."
+        system_prompt = "Eres un experto en NFL fantasy football draft strategy. Das recomendaciones precisas basadas en datos reales de puntos fantasy, adaptadas al contexto del roster y el draft serpentina."
 
         recommendation = ask_claude(prompt, system_prompt=system_prompt, max_tokens=1200)
         return recommendation
