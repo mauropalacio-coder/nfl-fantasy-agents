@@ -3,33 +3,29 @@ from agents.draft_agent import DraftAgent
 from agents.weekly_agent import WeeklyAgent
 from agents.waiver_agent import WaiverAgent
 
-MODES = {
-    "1": "draft",
-    "2": "weekly",
-    "3": "waiver",
-}
-
 class Orchestrator:
     def __init__(self):
         print("Iniciando NFL Fantasy AI Agents...\n")
         self.data_agent = DataAgent()
         self.data_agent.load_data()
+        self.data_agent.load_player_rankings(seasons=[2023, 2024, 2025])
         self.draft_agent = DraftAgent(self.data_agent)
         self.weekly_agent = WeeklyAgent(self.data_agent)
         self.waiver_agent = WaiverAgent(self.data_agent)
-         # Roster simulado para pruebas - reemplazar con roster real post-draft
+
+        # Roster simulado para pruebas - reemplazar con roster real post-draft
         self.my_roster = [
-            {"name": "Brock Purdy", "position": "QB", "team": "SF", "age": 26, "years_exp": 4},
-            {"name": "Christian McCaffrey", "position": "RB", "team": "SF", "age": 29, "years_exp": 9},
-            {"name": "Saquon Barkley", "position": "RB", "team": "PHI", "age": 29, "years_exp": 8},
-            {"name": "CeeDee Lamb", "position": "WR", "team": "DAL", "age": 26, "years_exp": 5},
-            {"name": "Amon-Ra St. Brown", "position": "WR", "team": "DET", "age": 25, "years_exp": 4},
-            {"name": "Sam LaPorta", "position": "TE", "team": "DET", "age": 24, "years_exp": 2},
-            {"name": "Josh Jacobs", "position": "RB", "team": "GB", "age": 27, "years_exp": 6},
-            {"name": "Jaylen Warren", "position": "RB", "team": "PIT", "age": 26, "years_exp": 3},
-            {"name": "Rashid Shaheed", "position": "WR", "team": "NO", "age": 26, "years_exp": 3},
-            {"name": "Jake Elliott", "position": "K", "team": "PHI", "age": 29, "years_exp": 8},
-            {"name": "San Francisco 49ers", "position": "DEF", "team": "SF", "age": None, "years_exp": None},
+            {"id": "4039", "name": "Brock Purdy", "position": "QB", "team": "SF", "age": 26, "years_exp": 4},
+            {"id": "4866", "name": "Christian McCaffrey", "position": "RB", "team": "SF", "age": 29, "years_exp": 9},
+            {"id": "4035", "name": "Saquon Barkley", "position": "RB", "team": "PHI", "age": 29, "years_exp": 8},
+            {"id": "6797", "name": "CeeDee Lamb", "position": "WR", "team": "DAL", "age": 26, "years_exp": 5},
+            {"id": "7547", "name": "Amon-Ra St. Brown", "position": "WR", "team": "DET", "age": 25, "years_exp": 4},
+            {"id": "7564", "name": "Sam LaPorta", "position": "TE", "team": "DET", "age": 24, "years_exp": 2},
+            {"id": "5012", "name": "Josh Jacobs", "position": "RB", "team": "GB", "age": 27, "years_exp": 6},
+            {"id": "6801", "name": "Jaylen Warren", "position": "RB", "team": "PIT", "age": 26, "years_exp": 3},
+            {"id": "6790", "name": "Rashid Shaheed", "position": "WR", "team": "NO", "age": 26, "years_exp": 3},
+            {"id": "3448", "name": "Jake Elliott", "position": "K", "team": "PHI", "age": 29, "years_exp": 8},
+            {"id": "TEAM_SF", "name": "San Francisco 49ers", "position": "DEF", "team": "SF", "age": None, "years_exp": None},
         ]
 
     def get_input(self, prompt):
@@ -70,7 +66,6 @@ class Orchestrator:
         print("   ANALISIS SEMANAL DE LINEUP")
         print("="*50)
 
-        # Verificar roster
         if not self.my_roster:
             print("\nNo tienes jugadores en tu roster.")
             print("Primero ejecuta el modo Draft o carga tu roster.")
@@ -78,11 +73,9 @@ class Orchestrator:
 
         self.show_my_roster()
 
-        # Datos de la semana
         week = self.get_input("\n¿Que semana de la NFL es? (ej: 5): ")
         opponent_name = self.get_input("Nombre del rival: ")
 
-        # Ingresar roster del rival
         print(f"\nIngresa los jugadores titulares de {opponent_name}.")
         print("Escribe 'listo' cuando termines.\n")
 
@@ -97,7 +90,6 @@ class Orchestrator:
             if nombre.lower() == "listo":
                 break
 
-            # Buscar jugador en la base
             results = self.data_agent.get_player_info(nombre)
             if results:
                 player = results[0]
@@ -108,7 +100,6 @@ class Orchestrator:
                 })
                 print(f"  ✓ {player['name']} | {player['position']} | {player['team']}")
             else:
-                # Ingresar manualmente si no se encuentra
                 team = self.get_input(f"  Equipo de {nombre} (ej: KC): ").upper()
                 opponent_roster.append({
                     "name": nombre,
@@ -119,7 +110,6 @@ class Orchestrator:
 
             pos_index += 1
 
-        # Generar recomendacion
         print("\nGenerando analisis de lineup...\n")
         recomendacion = self.weekly_agent.recommend_lineup(
             roster=self.my_roster,
@@ -134,7 +124,25 @@ class Orchestrator:
         print("\n" + "="*50)
         print("   WAIVER / TRADE AGENT")
         print("="*50)
-        print("(Proximamente - siguiente sesion)")
+
+        self.show_my_roster()
+
+        if not self.my_roster:
+            print("\nNo tienes jugadores en tu roster.")
+            return
+
+        waiver_pos = self.get_input("\n¿Cual es tu posicion en el waiver wire? (1-4): ")
+        trigger = self.get_input("¿Cual es el motivo? (ej: lesion de CMC, bye week, bajo rendimiento): ")
+
+        print("\nGenerando recomendaciones de waiver...\n")
+
+        recomendacion = self.waiver_agent.recommend(
+            my_roster=self.my_roster,
+            waiver_position=int(waiver_pos),
+            total_teams=4,
+            trigger=trigger
+        )
+        print(recomendacion)
 
     def run(self):
         """Loop principal del orquestador."""
