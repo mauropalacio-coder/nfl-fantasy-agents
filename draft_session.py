@@ -1,16 +1,19 @@
 from agents.data_agent import DataAgent
 from agents.draft_agent import DraftAgent
 
-def run_draft_session():
+def run_draft_session(data_agent=None):
     print("\n" + "="*50)
     print("   NFL FANTASY DRAFT 2026 - ASISTENTE DE MAURO")
     print("="*50)
     print("Draft serpentina | 15 rondas | 4 participantes")
     print("Presiona Enter para avanzar a la siguiente ronda\n")
 
-    data_agent = DataAgent()
-    data_agent.load_data()
-    data_agent.load_player_rankings(seasons=[2023, 2024, 2025])
+    # Usar data_agent existente o crear uno nuevo
+    if data_agent is None:
+        data_agent = DataAgent()
+        data_agent.load_data()
+        data_agent.load_player_rankings(seasons=[2023, 2024, 2025])
+
     draft_agent = DraftAgent(data_agent)
 
     for round_number in range(1, 16):
@@ -30,7 +33,6 @@ def run_draft_session():
         opciones = []
         for linea in recomendacion.split("\n"):
             linea_clean = linea.strip()
-            # Detectar lineas que empiecen con OPCION (con o sin acento, con o sin **)
             linea_norm = linea_clean.replace("**", "").replace("Ó", "O").replace("ó", "o")
             if linea_norm.upper().startswith("OPCION") and "|" in linea_norm:
                 partes = linea_norm.split("|")
@@ -49,7 +51,7 @@ def run_draft_session():
                     draft_agent.mark_as_drafted(results[0]["id"])
                     print(f"  (Simulado: {results[0]['name']} tomado por amigo antes de tu pick)")
 
-            # Marcar el pick de Mauro (opcion despues de los picks de amigos)
+            # Marcar el pick de Mauro
             idx_mauro = picks_before_mauro
             if idx_mauro < len(opciones):
                 nombre_mauro = opciones[idx_mauro]
