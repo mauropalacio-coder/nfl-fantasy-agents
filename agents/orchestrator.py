@@ -2,6 +2,7 @@ from agents.data_agent import DataAgent
 from agents.draft_agent import DraftAgent
 from agents.weekly_agent import WeeklyAgent
 from agents.waiver_agent import WaiverAgent
+from utils.roster_manager import load_roster, save_roster, add_player, remove_player, show_roster
 
 class Orchestrator:
     def __init__(self):
@@ -13,23 +14,14 @@ class Orchestrator:
         self.weekly_agent = WeeklyAgent(self.data_agent)
         self.waiver_agent = WaiverAgent(self.data_agent)
 
-        # Roster simulado para pruebas - reemplazar con roster real post-draft
-        self.my_roster = [
-            {"id": "4039", "name": "Brock Purdy", "position": "QB", "team": "SF", "age": 26, "years_exp": 4},
-            {"id": "4866", "name": "Christian McCaffrey", "position": "RB", "team": "SF", "age": 29, "years_exp": 9},
-            {"id": "4035", "name": "Saquon Barkley", "position": "RB", "team": "PHI", "age": 29, "years_exp": 8},
-            {"id": "6797", "name": "CeeDee Lamb", "position": "WR", "team": "DAL", "age": 26, "years_exp": 5},
-            {"id": "7547", "name": "Amon-Ra St. Brown", "position": "WR", "team": "DET", "age": 25, "years_exp": 4},
-            {"id": "7564", "name": "Sam LaPorta", "position": "TE", "team": "DET", "age": 24, "years_exp": 2},
-            {"id": "5012", "name": "Josh Jacobs", "position": "RB", "team": "GB", "age": 27, "years_exp": 6},
-            {"id": "6801", "name": "Jaylen Warren", "position": "RB", "team": "PIT", "age": 26, "years_exp": 3},
-            {"id": "6790", "name": "Rashid Shaheed", "position": "WR", "team": "NO", "age": 26, "years_exp": 3},
-            {"id": "3448", "name": "Jake Elliott", "position": "K", "team": "PHI", "age": 29, "years_exp": 8},
-            {"id": "TEAM_SF", "name": "San Francisco 49ers", "position": "DEF", "team": "SF", "age": None, "years_exp": None},
-        ]
+        # Cargar roster desde archivo persistente
+        self.my_roster = load_roster()
+        if self.my_roster:
+            print(f"Roster cargado: {len(self.my_roster)} jugadores.")
+        else:
+            print("Roster vacio. Ve a 'Gestionar Roster' para agregar jugadores.")
 
     def get_input(self, prompt):
-        """Pide input y valida que no este vacio."""
         while True:
             value = input(prompt).strip()
             if value:
@@ -43,32 +35,31 @@ class Orchestrator:
         print("1. Modo Draft")
         print("2. Analisis Semanal de Lineup")
         print("3. Waiver / Trade")
-        print("4. Salir")
+        print("4. Gestionar Mi Roster")
+        print("5. Salir")
         print("="*50)
-        return self.get_input("Selecciona una opcion (1-4): ")
+        return self.get_input("Selecciona una opcion (1-5): ")
 
     def show_my_roster(self):
         if not self.my_roster:
             print("\nRoster vacio.")
         else:
-            print("\nTU ROSTER ACTUAL:")
-            for p in self.my_roster:
-                print(f"  {p['position']:4} | {p['name']} | {p['team']}")
+            print(f"\nTU ROSTER ACTUAL ({len(self.my_roster)} jugadores):")
+            for p in sorted(self.my_roster, key=lambda x: x["position"]):
+                print(f"  {p['position']:4} | {p['name']:25} | {p['team']}")
 
     def run_draft_mode(self):
-        """Ejecuta el flujo completo de draft."""
         from draft_session import run_draft_session
-        run_draft_session()
+        run_draft_session(data_agent=self.data_agent)
 
     def run_weekly_mode(self):
-        """Ejecuta el analisis semanal de lineup."""
         print("\n" + "="*50)
         print("   ANALISIS SEMANAL DE LINEUP")
         print("="*50)
 
         if not self.my_roster:
             print("\nNo tienes jugadores en tu roster.")
-            print("Primero ejecuta el modo Draft o carga tu roster.")
+            print("Ve a 'Gestionar Mi Roster' para agregar jugadores.")
             return
 
         self.show_my_roster()
@@ -120,7 +111,6 @@ class Orchestrator:
         print(recomendacion)
 
     def run_waiver_mode(self):
-        """Ejecuta el analisis de waivers."""
         print("\n" + "="*50)
         print("   WAIVER / TRADE AGENT")
         print("="*50)
@@ -144,8 +134,58 @@ class Orchestrator:
         )
         print(recomendacion)
 
+    def run_roster_mode(self):
+        """Gestiona el roster de Mauro."""
+        while True:
+            print("\n" + "="*50)
+            print("   GESTIONAR MI ROSTER")
+            print("="*50)
+            self.show_my_roster()
+            print("\n1. Agregar jugador")
+            print("2. Eliminar jugador")
+            print("3. Volver al menu principal")
+            print("="*50)
+
+            opcion = self.get_input("Selecciona una opcion (1-3): ")
+
+            if opcion == "1":
+                nombre = self.get_input("Nombre del jugador: ")
+
+                # Buscar en la base de datos
+                results = self.data_agent.get_player_info(nombre)
+                if results:
+                    player = results[0]
+                    print(f"  Encontrado: {player['name']} | {player['position']} | {player['team']}")
+                    confirmar = self.get_input("¿Agregar al roster? (s/n): ")
+                    if confirmar.lower() == "s":
+                        self.my_roster = add_player(
+                            name=player["name"],
+                            position=player["position"],
+                            team=player["team"],
+                            age=player.get("age"),
+                            years_exp=player.get("years_exp"),
+                            player_id=player["id"]
+                        )
+                        print(f"✓ {player['name']} agregado al roster.")
+                else:
+                    print(f"Jugador no encontrado en la base. Ingresa manualmente:")
+                    position = self.get_input("Posicion (QB/RB/WR/TE/K/DEF): ").upper()
+                    team = self.get_input("Equipo (ej: SF): ").upper()
+                    self.my_roster = add_player(
+                        name=nombre,
+                        position=position,
+                        team=team,
+                    )
+                    print(f"✓ {nombre} agregado manualmente.")
+
+            elif opcion == "2":
+                nombre = self.get_input("Nombre del jugador a eliminar: ")
+                self.my_roster = remove_player(nombre)
+
+            elif opcion == "3":
+                break
+
     def run(self):
-        """Loop principal del orquestador."""
         while True:
             opcion = self.show_menu()
 
@@ -156,6 +196,8 @@ class Orchestrator:
             elif opcion == "3":
                 self.run_waiver_mode()
             elif opcion == "4":
+                self.run_roster_mode()
+            elif opcion == "5":
                 print("\n¡Hasta la proxima, Mauro! 🏈")
                 break
             else:

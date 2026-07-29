@@ -1,0 +1,29 @@
+{
+  "last_updated": "2026-07-29 15:24",
+  "players": [
+    {
+      "id": "8183",
+      "name": "Brock Purdy",
+      "position": "QB",
+      "team": "SF",
+      "age": 26,
+      "years_exp": 4
+    },
+    {
+      "id": "9509",
+      "name": "Bijan Robinson",
+      "position": "RB",
+      "team": "ATL",
+      "age": 24,
+      "years_exp": 3
+    },
+    {
+      "id": "12507",
+      "name": "Omarion Hampton",
+      "position": "RB",
+      "team": "LAC",
+      "age": 23,
+      "years_exp": 1
+    }
+  ]
+}
