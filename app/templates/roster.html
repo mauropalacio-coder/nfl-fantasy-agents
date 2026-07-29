@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>👥 Mi Roster</h1>
+    <p>Gestiona tu equipo durante toda la temporada</p>
+</div>
+
+<div class="roster-actions">
+    <div class="add-player-form">
+        <input type="text" id="player-search" placeholder="Nombre del jugador" class="form-input">
+        <button class="btn-primary" onclick="addPlayer()">+ Agregar</button>
+    </div>
+</div>
+
+<div id="message" class="message hidden"></div>
+
+<div class="roster-table">
+    {% if roster %}
+    <table>
+        <thead>
+            <tr>
+                <th>Posición</th>
+                <th>Jugador</th>
+                <th>Equipo</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="roster-body">
+            {% for player in roster|sort(attribute='position') %}
+            <tr id="row-{{ loop.index }}">
+                <td><span class="pos-badge pos-{{ player.position }}">{{ player.position }}</span></td>
+                <td>{{ player.name }}</td>
+                <td>{{ player.team }}</td>
+                <td>
+                    <button class="btn-danger" onclick="removePlayer('{{ player.name }}', this)">✕</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No tienes jugadores en tu roster.</p>
+        <p>Busca un jugador arriba para comenzar.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    async function addPlayer() {
+        const name = document.getElementById('player-search').value.trim();
+        if (!name) {
+            showMessage('Ingresa el nombre de un jugador.', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/roster/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                showMessage(`✓ ${data.player.name} agregado al roster.`, 'success');
+                document.getElementById('player-search').value = '';
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showMessage(data.message, 'error');
+            }
+        } catch (error) {
+            showMessage('Error al agregar jugador.', 'error');
+        }
+    }
+
+    async function removePlayer(name, btn) {
+        if (!confirm(`¿Eliminar a ${name} del roster?`)) return;
+
+        try {
+            const response = await fetch('/api/roster/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                btn.closest('tr').remove();
+                showMessage(`${name} eliminado del roster.`, 'success');
+            }
+        } catch (error) {
+            showMessage('Error al eliminar jugador.', 'error');
+        }
+    }
+
+    function showMessage(text, type) {
+        const msg = document.getElementById('message');
+        msg.textContent = text;
+        msg.className = `message ${type}`;
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 3000);
+    }
+
+    // Agregar con Enter
+    document.getElementById('player-search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addPlayer();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>📋 Modo Draft</h1>
+    <p>Recomendaciones basadas en puntos reales 2023-2025</p>
+</div>
+
+<div class="draft-controls">
+    <div class="round-selector">
+        <label>Ronda actual:</label>
+        <div class="round-buttons">
+            {% for i in range(1, 16) %}
+            <button class="round-btn" onclick="setRound({{ i }})" id="round-{{ i }}">{{ i }}</button>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="draft-actions">
+        <button class="btn-primary" onclick="getRecommendation()">🎯 Ver Recomendaciones</button>
+        <button class="btn-secondary" onclick="confirmAndNext()">✓ Confirmar Pick y Siguiente Ronda</button>
+        <button class="btn-secondary" onclick="resetDraft()">↺ Reiniciar Draft</button>
+    </div>
+</div>
+
+<div id="draft-status" class="draft-status hidden">
+    <span id="status-text"></span>
+</div>
+
+<div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <p>Generando recomendaciones...</p>
+</div>
+
+<div id="recommendations" class="recommendations hidden"></div>
+
+<script>
+    let currentRound = 1;
+    let lastOpciones = [];
+
+    function setRound(round) {
+        currentRound = round;
+        document.querySelectorAll('.round-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`round-${round}`).classList.add('active');
+    }
+
+    setRound(1);
+
+    async function getRecommendation() {
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('recommendations').classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/draft/recommend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ round: currentRound })
+            });
+            const data = await response.json();
+            lastOpciones = data.opciones || [];
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('recommendations').classList.remove('hidden');
+            document.getElementById('recommendations').innerHTML = `
+                <div class="recommendation-header">
+                    <h2>Ronda ${currentRound} — Pick #${currentRound % 2 === 1 ? 3 : 2} de 4</h2>
+                </div>
+                <div class="recommendation-content">
+                    ${formatMarkdown(data.recommendation)}
+                </div>
+            `;
+        } catch (error) {
+            document.getElementById('loading').classList.add('hidden');
+            alert('Error al generar recomendaciones.');
+        }
+    }
+
+    async function confirmAndNext() {
+        if (lastOpciones.length === 0) {
+            alert('Primero genera las recomendaciones para esta ronda.');
+            return;
+        }
+
+        if (currentRound >= 15) {
+            alert('¡Draft completado!');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/draft/confirm_pick', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ round: currentRound, opciones: lastOpciones })
+            });
+            const data = await response.json();
+
+            // Avanzar a siguiente ronda
+            const nextRound = currentRound + 1;
+            setRound(nextRound);
+            lastOpciones = [];
+            document.getElementById('recommendations').classList.add('hidden');
+
+            // Mostrar status
+            const status = document.getElementById('draft-status');
+            document.getElementById('status-text').textContent = 
+                `✓ Ronda ${currentRound - 1} confirmada — ${data.drafted_count} jugadores draftados en total`;
+            status.classList.remove('hidden');
+
+            // Generar recomendaciones para siguiente ronda automaticamente
+            getRecommendation();
+
+        } catch (error) {
+            alert('Error al confirmar picks.');
+        }
+    }
+
+    async function resetDraft() {
+        if (!confirm('¿Reiniciar el draft? Se perderán las selecciones simuladas.')) return;
+        await fetch('/api/draft/reset', { method: 'POST' });
+        document.getElementById('recommendations').classList.add('hidden');
+        document.getElementById('draft-status').classList.add('hidden');
+        lastOpciones = [];
+        setRound(1);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>🔄 Waivers</h1>
+    <p>3 opciones realistas según tu posición en el wire</p>
+</div>
+
+{% if not roster %}
+<div class="alert alert-warning">
+    No tienes jugadores en tu roster. <a href="/roster">Agrega jugadores primero.</a>
+</div>
+{% else %}
+<div class="form-section">
+    <div class="form-group">
+        <label>Tu posición en el waiver wire</label>
+        <select id="waiver_position" class="form-input">
+            <option value="1">1 — Alta prioridad</option>
+            <option value="2">2 — Prioridad media</option>
+            <option value="3" selected>3 — Baja prioridad</option>
+            <option value="4">4 — Última prioridad</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Motivo del análisis</label>
+        <input type="text" id="trigger" placeholder="ej: Lesión de CMC, bye week, bajo rendimiento" class="form-input">
+    </div>
+</div>
+
+<button class="btn-primary" onclick="analyzeWaiver()">🔄 Analizar Waivers</button>
+
+<div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <p>Analizando waivers...</p>
+</div>
+
+<div id="result" class="recommendation-content hidden"></div>
+
+<script>
+    async function analyzeWaiver() {
+        const waiver_position = document.getElementById('waiver_position').value;
+        const trigger = document.getElementById('trigger').value;
+
+        if (!trigger) {
+            alert('Ingresa el motivo del análisis.');
+            return;
+        }
+
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('result').classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/waiver/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ waiver_position, trigger })
+            });
+            const data = await response.json();
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+
+            if (data.error) {
+                document.getElementById('result').innerHTML = `<p class="error">${data.error}</p>`;
+            } else {
+                document.getElementById('result').innerHTML = formatMarkdown(data.recommendation);
+            }
+        } catch (error) {
+            document.getElementById('loading').classList.add('hidden');
+            alert('Error al analizar waivers.');
+        }
+    }
+</script>
+{% endif %}
+{% endblock %}

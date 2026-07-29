@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+    <h1>NFL Fantasy AI Agents</h1>
+    <p class="hero-subtitle">Tu asistente inteligente para la temporada 2026</p>
+    <div class="stats-bar">
+        <div class="stat">
+            <span class="stat-number">{{ roster|length }}</span>
+            <span class="stat-label">Jugadores en roster</span>
+        </div>
+        <div class="stat">
+            <span class="stat-number">15</span>
+            <span class="stat-label">Rondas de draft</span>
+        </div>
+        <div class="stat">
+            <span class="stat-number">4</span>
+            <span class="stat-label">Equipos en la liga</span>
+        </div>
+    </div>
+</div>
+
+<div class="cards-grid">
+    <a href="/draft" class="card">
+        <div class="card-icon">📋</div>
+        <h2>Modo Draft</h2>
+        <p>5 opciones rankeadas por ronda basadas en puntos reales 2023-2025</p>
+    </a>
+    <a href="/weekly" class="card">
+        <div class="card-icon">📅</div>
+        <h2>Análisis Semanal</h2>
+        <p>Lineup óptimo contra tu rival de la semana</p>
+    </a>
+    <a href="/waiver" class="card">
+        <div class="card-icon">🔄</div>
+        <h2>Waivers</h2>
+        <p>3 opciones realistas según tu posición en el wire</p>
+    </a>
+    <a href="/roster" class="card">
+        <div class="card-icon">👥</div>
+        <h2>Mi Roster</h2>
+        <p>Gestiona tu equipo durante toda la temporada</p>
+    </a>
+</div>
+{% endblock %}

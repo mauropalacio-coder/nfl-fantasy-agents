@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>📅 Análisis Semanal</h1>
+    <p>Lineup óptimo contra tu rival de la semana</p>
+</div>
+
+{% if not roster %}
+<div class="alert alert-warning">
+    No tienes jugadores en tu roster. <a href="/roster">Agrega jugadores primero.</a>
+</div>
+{% else %}
+<div class="form-section">
+    <div class="form-group">
+        <label>Semana NFL</label>
+        <input type="number" id="week" min="1" max="18" value="1" class="form-input">
+    </div>
+    <div class="form-group">
+        <label>Nombre del rival</label>
+        <input type="text" id="opponent_name" placeholder="ej: Nabikis" class="form-input">
+    </div>
+</div>
+
+<div class="opponent-section">
+    <h2>Jugadores del rival</h2>
+    <p class="hint">Ingresa los titulares del rival esta semana</p>
+    <div id="opponent-players">
+        {% for pos in ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DEF"] %}
+        <div class="opponent-row">
+            <span class="pos-label">{{ pos }}</span>
+            <input type="text" class="form-input opponent-input" placeholder="Nombre del jugador" data-pos="{{ pos }}">
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<button class="btn-primary" onclick="analyzeLineup()">🏈 Analizar Lineup</button>
+
+<div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <p>Analizando lineup...</p>
+</div>
+
+<div id="result" class="recommendation-content hidden"></div>
+
+<script>
+    async function analyzeLineup() {
+        const week = document.getElementById('week').value;
+        const opponent_name = document.getElementById('opponent_name').value;
+
+        if (!opponent_name) {
+            alert('Ingresa el nombre del rival.');
+            return;
+        }
+
+        const inputs = document.querySelectorAll('.opponent-input');
+        const opponent_roster = [];
+
+        for (const input of inputs) {
+            if (input.value.trim()) {
+                opponent_roster.push({
+                    name: input.value.trim(),
+                    position: input.dataset.pos,
+                    team: "N/A"
+                });
+            }
+        }
+
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('result').classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/weekly/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ week, opponent_name, opponent_roster })
+            });
+            const data = await response.json();
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+
+            if (data.error) {
+                document.getElementById('result').innerHTML = `<p class="error">${data.error}</p>`;
+            } else {
+                document.getElementById('result').innerHTML = formatMarkdown(data.recommendation);
+            }
+        } catch (error) {
+            document.getElementById('loading').classList.add('hidden');
+            alert('Error al analizar lineup.');
+        }
+    }
+</script>
+{% endif %}
+{% endblock %}
