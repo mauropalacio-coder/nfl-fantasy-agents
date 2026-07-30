@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>👥 Rosters de la Liga</h1>
+    <p>Gestiona los rosters de todos los participantes</p>
+</div>
+
+<div class="league-tabs">
+    {% for participant in participants %}
+    <button class="tab-btn {% if loop.first %}active{% endif %}" 
+            onclick="showRoster('{{ participant }}')">
+        {{ participant }}
+    </button>
+    {% endfor %}
+</div>
+
+<div id="message" class="message hidden"></div>
+
+{% for participant, roster in rosters.items() %}
+<div id="roster-{{ participant }}" class="roster-panel {% if not loop.first %}hidden{% endif %}">
+    
+    <div class="roster-add">
+        <input type="text" id="search-{{ participant }}" 
+               placeholder="Buscar jugador..." class="form-input">
+        <select id="slot-{{ participant }}" class="form-input" style="max-width: 150px;">
+            <option value="starters">Titular</option>
+            <option value="bench">Banca</option>
+        </select>
+        <button class="btn-primary" onclick="addPlayer('{{ participant }}')">+ Agregar</button>
+    </div>
+
+    <div class="roster-columns">
+        <div class="roster-column">
+            <h3>Titulares</h3>
+            <table class="roster-table-inner">
+                <thead>
+                    <tr>
+                        <th>POS</th>
+                        <th>Jugador</th>
+                        <th>Equipo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="starters-{{ participant }}">
+                    {% for player in roster.starters %}
+                    <tr>
+                        <td><span class="pos-badge">{{ player.position }}</span></td>
+                        <td>{{ player.name }}</td>
+                        <td>{{ player.team }}</td>
+                        <td>
+                            <button class="btn-small btn-move" 
+                                    onclick="movePlayer('{{ participant }}', '{{ player.name }}', 'bench')">
+                                → Banca
+                            </button>
+                            <button class="btn-small btn-danger" 
+                                    onclick="removePlayer('{{ participant }}', '{{ player.name }}')">
+                                ✕
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="roster-column">
+            <h3>Banca</h3>
+            <table class="roster-table-inner">
+                <thead>
+                    <tr>
+                        <th>POS</th>
+                        <th>Jugador</th>
+                        <th>Equipo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="bench-{{ participant }}">
+                    {% for player in roster.bench %}
+                    <tr>
+                        <td><span class="pos-badge">{{ player.position }}</span></td>
+                        <td>{{ player.name }}</td>
+                        <td>{{ player.team }}</td>
+                        <td>
+                            <button class="btn-small btn-move" 
+                                    onclick="movePlayer('{{ participant }}', '{{ player.name }}', 'starters')">
+                                → Titular
+                            </button>
+                            <button class="btn-small btn-danger" 
+                                    onclick="removePlayer('{{ participant }}', '{{ player.name }}')">
+                                ✕
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    function showRoster(participant) {
+        document.querySelectorAll('.roster-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`roster-${participant}`).classList.remove('hidden');
+        event.target.classList.add('active');
+    }
+
+    async function addPlayer(participant) {
+        const name = document.getElementById(`search-${participant}`).value.trim();
+        const slot = document.getElementById(`slot-${participant}`).value;
+
+        if (!name) {
+            showMessage('Ingresa el nombre de un jugador.', 'error');
+            return;
+        }
+
+        const response = await fetch('/api/league/add_player', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participant, name, slot })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showMessage(`✓ ${data.player.name} agregado a ${participant}.`, 'success');
+            document.getElementById(`search-${participant}`).value = '';
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showMessage(data.message, 'error');
+        }
+    }
+
+    async function removePlayer(participant, name) {
+        if (!confirm(`¿Eliminar a ${name} del roster de ${participant}?`)) return;
+
+        const response = await fetch('/api/league/remove_player', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participant, name })
+        });
+        const data = await response.json();
+        if (data.success) {
+            showMessage(`${name} eliminado.`, 'success');
+            setTimeout(() => location.reload(), 800);
+        }
+    }
+
+    async function movePlayer(participant, name, to_slot) {
+        const response = await fetch('/api/league/move_player', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participant, name, to_slot })
+        });
+        const data = await response.json();
+        if (data.success) {
+            showMessage(`${name} movido.`, 'success');
+            setTimeout(() => location.reload(), 800);
+        }
+    }
+
+    function showMessage(text, type) {
+        const msg = document.getElementById('message');
+        msg.textContent = text;
+        msg.className = `message ${type}`;
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 3000);
+    }
+</script>
+{% endblock %}

@@ -1,4 +1,13 @@
 {
-  "last_updated": "2026-07-29 15:59",
-  "players": []
+  "last_updated": "2026-07-29 19:29",
+  "players": [
+    {
+      "id": "6794",
+      "name": "Justin Jefferson",
+      "position": "WR",
+      "team": "MIN",
+      "age": 27,
+      "years_exp": 6
+    }
+  ]
 }

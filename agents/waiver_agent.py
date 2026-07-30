@@ -1,4 +1,5 @@
 from utils.claude_client import ask_claude
+from utils.league_roster_manager import get_all_drafted_players
 
 class WaiverAgent:
     def __init__(self, data_agent):
@@ -7,26 +8,43 @@ class WaiverAgent:
     def recommend(self, my_roster, waiver_position, total_teams=4, trigger=None):
         """
         Recomienda 3 opciones de waiver rankeadas.
-        my_roster: roster actual de Mauro
-        waiver_position: posicion de Mauro en el waiver wire (1 = mayor prioridad)
+        my_roster: roster actual de Mauro (starters + bench)
+        waiver_position: posicion de Mauro en el waiver wire
         total_teams: total de equipos en la liga
-        trigger: razon del analisis (lesion, bajo rendimiento, bye week, etc)
+        trigger: razon del analisis
         """
         if not my_roster:
-            return "No hay jugadores en el roster para analizar."
+            return "No hay jugadores en tu roster para analizar."
 
-        # Construir resumen del roster
-        roster_text = "Roster actual de Mauro:\n"
-        for p in my_roster:
-            roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
+        # Obtener todos los jugadores apartados en la liga
+        all_drafted_ids = get_all_drafted_players()
 
-        # Obtener jugadores disponibles en waivers usando rankings reales
+        # Agregar IDs del roster de Mauro tambien
+        my_ids = [p.get("id", "") for p in my_roster]
+        all_excluded = list(set(all_drafted_ids + my_ids))
+
+        # Construir resumen del roster de Mauro
+        starters = [p for p in my_roster if p.get("slot") == "starter"]
+        bench = [p for p in my_roster if p.get("slot") == "bench"]
+
+        if not starters and not bench:
+            # Si no tienen slot definido, mostrar todos
+            roster_text = "Roster de Mauro:\n"
+            for p in my_roster:
+                roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
+        else:
+            roster_text = "Roster de Mauro:\nTitulares:\n"
+            for p in starters:
+                roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
+            roster_text += "Banca:\n"
+            for p in bench:
+                roster_text += f"  - {p['name']} | {p['position']} | {p['team']}\n"
+
+        # Obtener jugadores disponibles excluyendo todos los apartados
         available_text = ""
         if self.data_agent.rankings:
-            pool = self.data_agent.get_ranked_draft_pool(
-                excluded_ids=[p.get("id", "") for p in my_roster]
-            )
-            available_text = "\nJUGADORES DISPONIBLES EN WAIVERS (por promedio pts reales):\n"
+            pool = self.data_agent.get_ranked_draft_pool(excluded_ids=all_excluded)
+            available_text = "\nJUGADORES DISPONIBLES EN WAIVERS (no estan en ningun roster):\n"
             for pos in ["QB", "RB", "WR", "TE", "K", "DEF"]:
                 players = pool.get(pos, [])[:8]
                 if players:
@@ -51,12 +69,13 @@ class WaiverAgent:
         {available_text}
 
         INSTRUCCIONES:
-        1. Analiza el roster de Mauro y detecta debilidades o necesidades
-        2. Considera su posicion en el waiver wire — si tiene baja prioridad,
-           no recomendar jugadores obvios que otros tomaran primero
-        3. Recomienda 3 opciones realistas segun su posicion en el wire
-        4. Para cada opcion indica quien soltar del roster si es necesario
-        5. Prioriza jugadores con alto promedio de puntos disponibles
+        1. Los jugadores listados como disponibles NO estan en ningun roster de la liga
+        2. Analiza el roster de Mauro incluyendo banca — considera si algun suplente
+           podria subir al lineup en lugar de buscar en waivers
+        3. Considera su posicion en el waiver wire
+        4. Recomienda 3 opciones realistas segun su posicion en el wire
+        5. Para cada opcion indica quien soltar del roster si es necesario
+        6. Prioriza jugadores con alto promedio de puntos disponibles
 
         Dame 3 opciones en este formato exacto:
 
@@ -73,6 +92,6 @@ class WaiverAgent:
         Razon: [explicacion breve considerando posicion en el wire]
         """
 
-        system_prompt = "Eres un experto en NFL fantasy football waivers. Das recomendaciones precisas considerando la posicion en el waiver wire y el roster actual."
+        system_prompt = "Eres un experto en NFL fantasy football waivers. Das recomendaciones precisas considerando la posicion en el waiver wire, el roster completo incluyendo banca, y solo jugadores realmente disponibles."
 
         return ask_claude(prompt, system_prompt=system_prompt, max_tokens=1000)

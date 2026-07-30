@@ -1,9 +1,14 @@
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify
 from agents.data_agent import DataAgent
 from agents.draft_agent import DraftAgent
 from agents.weekly_agent import WeeklyAgent
 from agents.waiver_agent import WaiverAgent
 from utils.roster_manager import load_roster, add_player, remove_player
+from utils.league_roster_manager import (
+    load_league_rosters, get_all_drafted_players,
+    add_player_to_roster, remove_player_from_roster,
+    move_player, get_participant_names
+)
 
 main = Blueprint("main", __name__)
 
@@ -16,7 +21,6 @@ weekly_agent = WeeklyAgent(data_agent)
 waiver_agent = WaiverAgent(data_agent)
 print("Agentes listos.")
 
-# Draft agent global con estado
 draft_agent = DraftAgent(data_agent)
 
 @main.route("/")
@@ -34,7 +38,6 @@ def draft_recommend():
     round_number = data.get("round", 1)
     recommendation = draft_agent.recommend(round_number=round_number)
 
-    # Extraer y marcar jugadores tomados automaticamente
     opciones = []
     for linea in recommendation.split("\n"):
         linea_norm = linea.strip().replace("**", "").replace("Ó", "O").replace("ó", "o")
@@ -53,7 +56,6 @@ def draft_recommend():
 
 @main.route("/api/draft/confirm_pick", methods=["POST"])
 def draft_confirm_pick():
-    """Confirma los picks de la ronda y actualiza el estado del draft."""
     data = request.json
     round_number = data.get("round", 1)
     opciones = data.get("opciones", [])
@@ -62,13 +64,11 @@ def draft_confirm_pick():
     picks_before = pick_position - 1
     picks_after = 4 - pick_position
 
-    # Marcar jugadores tomados antes de Mauro
     for i in range(min(picks_before, len(opciones))):
         results = data_agent.get_player_info(opciones[i])
         if results:
             draft_agent.mark_as_drafted(results[0]["id"])
 
-    # Marcar pick de Mauro
     idx_mauro = picks_before
     if idx_mauro < len(opciones):
         results = data_agent.get_player_info(opciones[idx_mauro])
@@ -79,7 +79,6 @@ def draft_confirm_pick():
                 results[0]["position"]
             )
 
-    # Marcar jugadores tomados despues de Mauro
     for i in range(picks_after):
         idx = idx_mauro + 1 + i
         if idx < len(opciones):
@@ -175,3 +174,40 @@ def roster_remove():
     name = data.get("name")
     remove_player(name)
     return jsonify({"success": True})
+
+@main.route("/league")
+def league():
+    rosters = load_league_rosters()
+    participants = list(rosters.keys())
+    return render_template("league.html", rosters=rosters, participants=participants)
+
+@main.route("/api/league/add_player", methods=["POST"])
+def league_add_player():
+    data = request.json
+    participant = data.get("participant")
+    name = data.get("name")
+    slot = data.get("slot", "bench")
+
+    results = data_agent.get_player_info(name)
+    if results:
+        player = results[0]
+        success, message = add_player_to_roster(participant, player, slot)
+        return jsonify({"success": success, "message": message, "player": player})
+    return jsonify({"success": False, "message": f"Jugador '{name}' no encontrado."})
+
+@main.route("/api/league/remove_player", methods=["POST"])
+def league_remove_player():
+    data = request.json
+    participant = data.get("participant")
+    name = data.get("name")
+    success, message = remove_player_from_roster(participant, name)
+    return jsonify({"success": success, "message": message})
+
+@main.route("/api/league/move_player", methods=["POST"])
+def league_move_player():
+    data = request.json
+    participant = data.get("participant")
+    name = data.get("name")
+    to_slot = data.get("to_slot")
+    success, message = move_player(participant, name, to_slot)
+    return jsonify({"success": success, "message": message})

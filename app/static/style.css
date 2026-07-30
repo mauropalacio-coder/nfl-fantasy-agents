@@ -314,3 +314,86 @@ body {
     margin-bottom: 1rem;
     font-size: 0.9rem;
 }
+
+/* ===== LEAGUE ===== */
+.league-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #1f2937;
+    padding-bottom: 1rem;
+}
+
+.tab-btn {
+    background: #1f2937;
+    color: #9ca3af;
+    border: 1px solid #374151;
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover { border-color: #4a9eff; color: #4a9eff; }
+
+.tab-btn.active { background: #4a9eff; color: #fff; border-color: #4a9eff; }
+
+.roster-add {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+}
+
+.roster-add .form-input { flex: 1; }
+
+.roster-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.roster-column h3 {
+    color: #4a9eff;
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.roster-table-inner { width: 100%; border-collapse: collapse; }
+
+.roster-table-inner th {
+    text-align: left;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    border-bottom: 1px solid #1f2937;
+}
+
+.roster-table-inner td {
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid #111827;
+    color: #d1d5db;
+    font-size: 0.9rem;
+}
+
+.roster-table-inner tr:hover td { background: #111827; }
+
+.btn-small {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 0.3rem;
+}
+
+.btn-move {
+    background: transparent;
+    color: #9ca3af;
+    border: 1px solid #374151;
+}
+
+.btn-move:hover { border-color: #4a9eff; color: #4a9eff; }
