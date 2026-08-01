@@ -7,7 +7,7 @@ from utils.roster_manager import load_roster, add_player, remove_player
 from utils.league_roster_manager import (
     load_league_rosters, get_all_drafted_players,
     add_player_to_roster, remove_player_from_roster,
-    move_player, get_participant_names
+    move_player, get_participant_names, get_participant_roster
 )
 
 main = Blueprint("main", __name__)
@@ -101,7 +101,8 @@ def draft_reset():
 @main.route("/weekly")
 def weekly():
     roster = load_roster()
-    return render_template("weekly.html", roster=roster)
+    participants = get_participant_names()
+    return render_template("weekly.html", roster=roster, participants=participants)
 
 @main.route("/api/weekly/analyze", methods=["POST"])
 def weekly_analyze():
@@ -180,6 +181,11 @@ def league():
     rosters = load_league_rosters()
     participants = list(rosters.keys())
     return render_template("league.html", rosters=rosters, participants=participants)
+
+@main.route("/api/league/get_roster/<participant>")
+def league_get_roster(participant):
+    roster = get_participant_roster(participant)
+    return jsonify(roster)
 
 @main.route("/api/league/add_player", methods=["POST"])
 def league_add_player():

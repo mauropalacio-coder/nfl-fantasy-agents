@@ -16,21 +16,37 @@
         <input type="number" id="week" min="1" max="18" value="1" class="form-input">
     </div>
     <div class="form-group">
-        <label>Nombre del rival</label>
-        <input type="text" id="opponent_name" placeholder="ej: Nabikis" class="form-input">
+        <label>Rival de la semana</label>
+        <select id="opponent_select" class="form-input" onchange="loadOpponentRoster()">
+            <option value="">-- Selecciona un rival --</option>
+            {% for participant in participants %}
+            <option value="{{ participant }}">{{ participant }}</option>
+            {% endfor %}
+        </select>
     </div>
 </div>
 
 <div class="opponent-section">
-    <h2>Jugadores del rival</h2>
-    <p class="hint">Ingresa los titulares del rival esta semana</p>
-    <div id="opponent-players">
-        {% for pos in ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DEF"] %}
-        <div class="opponent-row">
-            <span class="pos-label">{{ pos }}</span>
-            <input type="text" class="form-input opponent-input" placeholder="Nombre del jugador" data-pos="{{ pos }}">
+    <div class="opponent-header">
+        <h2>Lineup del rival</h2>
+        <span class="hint" id="opponent-hint">Selecciona un rival para cargar su lineup</span>
+    </div>
+
+    <div id="opponent-loaded" class="hidden">
+        <p class="hint">Lineup cargado desde los rosters de la liga. Puedes modificarlo si hubo cambios.</p>
+        <div id="opponent-starters-list" class="opponent-roster-display"></div>
+    </div>
+
+    <div id="opponent-manual">
+        <div id="opponent-players">
+            {% for pos in ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DEF"] %}
+            <div class="opponent-row">
+                <span class="pos-label">{{ pos }}</span>
+                <input type="text" class="form-input opponent-input"
+                       placeholder="Nombre del jugador" data-pos="{{ pos }}">
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
 </div>
 
@@ -44,26 +60,60 @@
 <div id="result" class="recommendation-content hidden"></div>
 
 <script>
+    let opponentRoster = [];
+
+    async function loadOpponentRoster() {
+        const participant = document.getElementById('opponent_select').value;
+        if (!participant) return;
+
+        const response = await fetch(`/api/league/get_roster/${participant}`);
+        const data = await response.json();
+
+        opponentRoster = data.starters || [];
+
+        if (opponentRoster.length > 0) {
+            document.getElementById('opponent-loaded').classList.remove('hidden');
+            document.getElementById('opponent-manual').classList.add('hidden');
+            document.getElementById('opponent-hint').textContent =
+                `Lineup de ${participant} cargado (${opponentRoster.length} titulares)`;
+
+            const list = document.getElementById('opponent-starters-list');
+            list.innerHTML = opponentRoster.map(p => `
+                <div class="opponent-row">
+                    <span class="pos-label">${p.position}</span>
+                    <span class="player-name">${p.name}</span>
+                    <span class="player-team">${p.team}</span>
+                </div>
+            `).join('');
+        } else {
+            document.getElementById('opponent-loaded').classList.add('hidden');
+            document.getElementById('opponent-manual').classList.remove('hidden');
+            document.getElementById('opponent-hint').textContent =
+                `${participant} no tiene titulares registrados. Ingresalos manualmente.`;
+        }
+    }
+
     async function analyzeLineup() {
         const week = document.getElementById('week').value;
-        const opponent_name = document.getElementById('opponent_name').value;
+        const opponent_name = document.getElementById('opponent_select').value;
 
         if (!opponent_name) {
-            alert('Ingresa el nombre del rival.');
+            alert('Selecciona un rival.');
             return;
         }
 
-        const inputs = document.querySelectorAll('.opponent-input');
-        const opponent_roster = [];
-
-        for (const input of inputs) {
-            if (input.value.trim()) {
-                opponent_roster.push({
-                    name: input.value.trim(),
-                    position: input.dataset.pos,
-                    team: "N/A"
-                });
-            }
+        let finalOpponentRoster = opponentRoster;
+        if (finalOpponentRoster.length === 0) {
+            const inputs = document.querySelectorAll('.opponent-input');
+            inputs.forEach(input => {
+                if (input.value.trim()) {
+                    finalOpponentRoster.push({
+                        name: input.value.trim(),
+                        position: input.dataset.pos,
+                        team: "N/A"
+                    });
+                }
+            });
         }
 
         document.getElementById('loading').classList.remove('hidden');
@@ -73,7 +123,7 @@
             const response = await fetch('/api/weekly/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ week, opponent_name, opponent_roster })
+                body: JSON.stringify({ week, opponent_name, opponent_roster: finalOpponentRoster })
             });
             const data = await response.json();
 
