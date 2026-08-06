@@ -7,8 +7,8 @@
 
 <div class="league-tabs">
     {% for participant in participants %}
-    <button class="tab-btn {% if loop.first %}active{% endif %}" 
-            onclick="showRoster('{{ participant }}')">
+    <button class="tab-btn {% if loop.first %}active{% endif %}"
+            onclick="showRoster('{{ participant }}', this)">
         {{ participant }}
     </button>
     {% endfor %}
@@ -18,10 +18,13 @@
 
 {% for participant, roster in rosters.items() %}
 <div id="roster-{{ participant }}" class="roster-panel {% if not loop.first %}hidden{% endif %}">
-    
+
     <div class="roster-add">
-        <input type="text" id="search-{{ participant }}" 
-               placeholder="Buscar jugador..." class="form-input">
+        <div class="autocomplete-wrapper">
+            <input type="text" id="search-{{ participant }}"
+                   placeholder="Buscar jugador..." class="form-input"
+                   data-participant="{{ participant }}">
+        </div>
         <select id="slot-{{ participant }}" class="form-input" style="max-width: 150px;">
             <option value="starters">Titular</option>
             <option value="bench">Banca</option>
@@ -41,20 +44,20 @@
                         <th></th>
                     </tr>
                 </thead>
-                <tbody id="starters-{{ participant }}">
+                <tbody>
                     {% for player in roster.starters %}
                     <tr>
                         <td><span class="pos-badge">{{ player.position }}</span></td>
                         <td>{{ player.name }}</td>
                         <td>{{ player.team }}</td>
                         <td>
-                            <button class="btn-small btn-move" 
+                            <button class="btn-small btn-move"
                                     onclick="movePlayer('{{ participant }}', '{{ player.name }}', 'bench')">
-                                → Banca
+                                Banca
                             </button>
-                            <button class="btn-small btn-danger" 
+                            <button class="btn-small btn-danger"
                                     onclick="removePlayer('{{ participant }}', '{{ player.name }}')">
-                                ✕
+                                x
                             </button>
                         </td>
                     </tr>
@@ -74,20 +77,20 @@
                         <th></th>
                     </tr>
                 </thead>
-                <tbody id="bench-{{ participant }}">
+                <tbody>
                     {% for player in roster.bench %}
                     <tr>
                         <td><span class="pos-badge">{{ player.position }}</span></td>
                         <td>{{ player.name }}</td>
                         <td>{{ player.team }}</td>
                         <td>
-                            <button class="btn-small btn-move" 
+                            <button class="btn-small btn-move"
                                     onclick="movePlayer('{{ participant }}', '{{ player.name }}', 'starters')">
-                                → Titular
+                                Titular
                             </button>
-                            <button class="btn-small btn-danger" 
+                            <button class="btn-small btn-danger"
                                     onclick="removePlayer('{{ participant }}', '{{ player.name }}')">
-                                ✕
+                                x
                             </button>
                         </td>
                     </tr>
@@ -100,72 +103,117 @@
 {% endfor %}
 
 <script>
-    function showRoster(participant) {
-        document.querySelectorAll('.roster-panel').forEach(p => p.classList.add('hidden'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`roster-${participant}`).classList.remove('hidden');
-        event.target.classList.add('active');
+    function showRoster(participant, btn) {
+        document.querySelectorAll('.roster-panel').forEach(function(p) { p.classList.add('hidden'); });
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.getElementById('roster-' + participant).classList.remove('hidden');
+        btn.classList.add('active');
     }
 
-    async function addPlayer(participant) {
-        const name = document.getElementById(`search-${participant}`).value.trim();
-        const slot = document.getElementById(`slot-${participant}`).value;
+    // Inicializar autocompletado para cada participante
+    document.querySelectorAll('[data-participant]').forEach(function(inputEl) {
+        var participant = inputEl.dataset.participant;
 
-        if (!name) {
-            showMessage('Ingresa el nombre de un jugador.', 'error');
-            return;
+        function removeList() {
+            var existing = inputEl.parentElement.querySelector('.autocomplete-list');
+            if (existing) existing.remove();
         }
 
-        const response = await fetch('/api/league/add_player', {
+        var debounceTimer;
+        inputEl.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            var query = this.value.trim();
+            if (query.length < 2) { removeList(); return; }
+
+            debounceTimer = setTimeout(async function() {
+                var response = await fetch('/api/players/search?q=' + encodeURIComponent(query));
+                var results = await response.json();
+
+                removeList();
+                if (results.length === 0) return;
+
+                var listEl = document.createElement('div');
+                listEl.className = 'autocomplete-list';
+
+                results.forEach(function(player) {
+                    var item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.innerHTML = '<span class="autocomplete-pos">' + player.position + '</span>' +
+                        '<span class="autocomplete-name">' + player.name + '</span>' +
+                        '<span class="autocomplete-team">' + player.team + '</span>';
+
+                    item.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        inputEl.value = player.name;
+                        removeList();
+                    });
+                    listEl.appendChild(item);
+                });
+
+                inputEl.parentElement.appendChild(listEl);
+            }, 250);
+        });
+
+        inputEl.addEventListener('blur', function() {
+            setTimeout(removeList, 150);
+        });
+    });
+
+    async function addPlayer(participant) {
+        var name = document.getElementById('search-' + participant).value.trim();
+        var slot = document.getElementById('slot-' + participant).value;
+
+        if (!name) { showMessage('Ingresa el nombre de un jugador.', 'error'); return; }
+
+        var response = await fetch('/api/league/add_player', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ participant, name, slot })
+            body: JSON.stringify({ participant: participant, name: name, slot: slot })
         });
-        const data = await response.json();
+        var data = await response.json();
 
         if (data.success) {
-            showMessage(`✓ ${data.player.name} agregado a ${participant}.`, 'success');
-            document.getElementById(`search-${participant}`).value = '';
-            setTimeout(() => location.reload(), 800);
+            showMessage(data.player.name + ' agregado a ' + participant, 'success');
+            document.getElementById('search-' + participant).value = '';
+            setTimeout(function() { location.reload(); }, 800);
         } else {
             showMessage(data.message, 'error');
         }
     }
 
     async function removePlayer(participant, name) {
-        if (!confirm(`¿Eliminar a ${name} del roster de ${participant}?`)) return;
-
-        const response = await fetch('/api/league/remove_player', {
+        if (!confirm('Eliminar a ' + name + ' del roster de ' + participant + '?')) return;
+        var response = await fetch('/api/league/remove_player', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ participant, name })
+            body: JSON.stringify({ participant: participant, name: name })
         });
-        const data = await response.json();
+        var data = await response.json();
         if (data.success) {
-            showMessage(`${name} eliminado.`, 'success');
-            setTimeout(() => location.reload(), 800);
+            showMessage(name + ' eliminado.', 'success');
+            setTimeout(function() { location.reload(); }, 800);
         }
     }
 
     async function movePlayer(participant, name, to_slot) {
-        const response = await fetch('/api/league/move_player', {
+        var response = await fetch('/api/league/move_player', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ participant, name, to_slot })
+            body: JSON.stringify({ participant: participant, name: name, to_slot: to_slot })
         });
-        const data = await response.json();
+        var data = await response.json();
         if (data.success) {
-            showMessage(`${name} movido.`, 'success');
-            setTimeout(() => location.reload(), 800);
+            showMessage(name + ' movido.', 'success');
+            setTimeout(function() { location.reload(); }, 800);
         }
     }
 
     function showMessage(text, type) {
-        const msg = document.getElementById('message');
+        var msg = document.getElementById('message');
         msg.textContent = text;
-        msg.className = `message ${type}`;
+        msg.className = 'message ' + type;
         msg.classList.remove('hidden');
-        setTimeout(() => msg.classList.add('hidden'), 3000);
+        setTimeout(function() { msg.classList.add('hidden'); }, 3000);
     }
 </script>
 {% endblock %}

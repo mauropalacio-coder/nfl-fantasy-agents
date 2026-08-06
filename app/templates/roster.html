@@ -7,7 +7,9 @@
 
 <div class="roster-actions">
     <div class="add-player-form">
-        <input type="text" id="player-search" placeholder="Nombre del jugador" class="form-input">
+        <div class="autocomplete-wrapper">
+            <input type="text" id="player-search" placeholder="Buscar jugador..." class="form-input">
+        </div>
         <button class="btn-primary" onclick="addPlayer()">+ Agregar</button>
     </div>
 </div>
@@ -19,7 +21,7 @@
     <table>
         <thead>
             <tr>
-                <th>Posición</th>
+                <th>Posicion</th>
                 <th>Jugador</th>
                 <th>Equipo</th>
                 <th></th>
@@ -27,12 +29,12 @@
         </thead>
         <tbody id="roster-body">
             {% for player in roster|sort(attribute='position') %}
-            <tr id="row-{{ loop.index }}">
-                <td><span class="pos-badge pos-{{ player.position }}">{{ player.position }}</span></td>
+            <tr>
+                <td><span class="pos-badge">{{ player.position }}</span></td>
                 <td>{{ player.name }}</td>
                 <td>{{ player.team }}</td>
                 <td>
-                    <button class="btn-danger" onclick="removePlayer('{{ player.name }}', this)">✕</button>
+                    <button class="btn-danger" onclick="removePlayer('{{ player.name }}', this)">x</button>
                 </td>
             </tr>
             {% endfor %}
@@ -47,25 +49,86 @@
 </div>
 
 <script>
+    function setupAutocomplete(inputEl, onSelect) {
+        let debounceTimer;
+        let listEl = null;
+
+        function removeList() {
+            if (listEl) { listEl.remove(); listEl = null; }
+        }
+
+        inputEl.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            if (query.length < 2) { removeList(); return; }
+
+            debounceTimer = setTimeout(async function() {
+                const response = await fetch('/api/players/search?q=' + encodeURIComponent(query));
+                const results = await response.json();
+
+                removeList();
+                if (results.length === 0) return;
+
+                listEl = document.createElement('div');
+                listEl.className = 'autocomplete-list';
+
+                results.forEach(function(player) {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.innerHTML = '<span class="autocomplete-pos">' + player.position + '</span>' +
+                        '<span class="autocomplete-name">' + player.name + '</span>' +
+                        '<span class="autocomplete-team">' + player.team + '</span>';
+
+                    item.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        inputEl.value = player.name;
+                        removeList();
+                        if (onSelect) onSelect(player);
+                    });
+                    listEl.appendChild(item);
+                });
+
+                const wrapper = inputEl.closest('.autocomplete-wrapper') || inputEl.parentElement;
+                wrapper.appendChild(listEl);
+            }, 250);
+        });
+
+        inputEl.addEventListener('blur', function() {
+            setTimeout(removeList, 150);
+        });
+    }
+
+    const searchInput = document.getElementById('player-search');
+    setupAutocomplete(searchInput, function(player) {
+        addPlayerByName(player.name);
+    });
+
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addPlayer();
+    });
+
     async function addPlayer() {
-        const name = document.getElementById('player-search').value.trim();
+        const name = searchInput.value.trim();
         if (!name) {
             showMessage('Ingresa el nombre de un jugador.', 'error');
             return;
         }
+        await addPlayerByName(name);
+    }
 
+    async function addPlayerByName(name) {
         try {
             const response = await fetch('/api/roster/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name: name })
             });
             const data = await response.json();
 
             if (data.success) {
-                showMessage(`✓ ${data.player.name} agregado al roster.`, 'success');
-                document.getElementById('player-search').value = '';
-                setTimeout(() => location.reload(), 1000);
+                showMessage('Agregado: ' + data.player.name, 'success');
+                searchInput.value = '';
+                setTimeout(function() { location.reload(); }, 800);
             } else {
                 showMessage(data.message, 'error');
             }
@@ -75,19 +138,17 @@
     }
 
     async function removePlayer(name, btn) {
-        if (!confirm(`¿Eliminar a ${name} del roster?`)) return;
-
+        if (!confirm('Eliminar a ' + name + ' del roster?')) return;
         try {
             const response = await fetch('/api/roster/remove', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name: name })
             });
             const data = await response.json();
-
             if (data.success) {
                 btn.closest('tr').remove();
-                showMessage(`${name} eliminado del roster.`, 'success');
+                showMessage(name + ' eliminado.', 'success');
             }
         } catch (error) {
             showMessage('Error al eliminar jugador.', 'error');
@@ -97,14 +158,9 @@
     function showMessage(text, type) {
         const msg = document.getElementById('message');
         msg.textContent = text;
-        msg.className = `message ${type}`;
+        msg.className = 'message ' + type;
         msg.classList.remove('hidden');
-        setTimeout(() => msg.classList.add('hidden'), 3000);
+        setTimeout(function() { msg.classList.add('hidden'); }, 3000);
     }
-
-    // Agregar con Enter
-    document.getElementById('player-search').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') addPlayer();
-    });
 </script>
 {% endblock %}

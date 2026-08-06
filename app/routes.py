@@ -217,3 +217,12 @@ def league_move_player():
     to_slot = data.get("to_slot")
     success, message = move_player(participant, name, to_slot)
     return jsonify({"success": success, "message": message})
+
+@main.route("/api/players/search")
+def players_search():
+    query = request.args.get("q", "").strip()
+    if len(query) < 2:
+        return jsonify([])
+
+    results = data_agent.get_player_info(query)
+    return jsonify(results[:8])

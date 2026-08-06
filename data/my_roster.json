@@ -1,13 +1,21 @@
 {
-  "last_updated": "2026-07-29 19:29",
+  "last_updated": "2026-08-05 20:58",
   "players": [
     {
-      "id": "6794",
-      "name": "Justin Jefferson",
+      "id": "13975",
+      "name": "Le'Meke Brockington",
       "position": "WR",
-      "team": "MIN",
-      "age": 27,
-      "years_exp": 6
+      "team": "ATL",
+      "age": 24,
+      "years_exp": 0
+    },
+    {
+      "id": "7564",
+      "name": "Ja'Marr Chase",
+      "position": "WR",
+      "team": "CIN",
+      "age": 26,
+      "years_exp": 5
     }
   ]
 }
