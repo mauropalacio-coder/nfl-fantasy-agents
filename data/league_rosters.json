@@ -1,21 +1,12 @@
 {
-  "last_updated": "2026-07-29 20:51",
+  "last_updated": "2026-08-05 21:11",
   "participants": {
     "Mauro": {
       "starters": [],
       "bench": []
     },
     "Amigo1": {
-      "starters": [
-        {
-          "id": "8183",
-          "name": "Brock Purdy",
-          "position": "QB",
-          "team": "SF",
-          "age": 26,
-          "years_exp": 4
-        }
-      ],
+      "starters": [],
       "bench": []
     },
     "Amigo2": {

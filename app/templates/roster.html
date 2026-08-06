@@ -34,7 +34,7 @@
                 <td>{{ player.name }}</td>
                 <td>{{ player.team }}</td>
                 <td>
-                    <button class="btn-danger" onclick="removePlayer('{{ player.name }}', this)">x</button>
+                    <button class="btn-danger" data-name="{{ player.name }}" onclick="removePlayer(this.dataset.name, this)">x</button>
                 </td>
             </tr>
             {% endfor %}

@@ -1,21 +1,4 @@
 {
-  "last_updated": "2026-08-05 20:58",
-  "players": [
-    {
-      "id": "13975",
-      "name": "Le'Meke Brockington",
-      "position": "WR",
-      "team": "ATL",
-      "age": 24,
-      "years_exp": 0
-    },
-    {
-      "id": "7564",
-      "name": "Ja'Marr Chase",
-      "position": "WR",
-      "team": "CIN",
-      "age": 26,
-      "years_exp": 5
-    }
-  ]
+  "last_updated": "2026-08-05 21:07",
+  "players": []
 }

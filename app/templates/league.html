@@ -52,11 +52,16 @@
                         <td>{{ player.team }}</td>
                         <td>
                             <button class="btn-small btn-move"
-                                    onclick="movePlayer('{{ participant }}', '{{ player.name }}', 'bench')">
+                                    data-participant="{{ participant }}"
+                                    data-name="{{ player.name }}"
+                                    data-slot="bench"
+                                    onclick="movePlayer(this.dataset.participant, this.dataset.name, this.dataset.slot)">
                                 Banca
                             </button>
                             <button class="btn-small btn-danger"
-                                    onclick="removePlayer('{{ participant }}', '{{ player.name }}')">
+                                    data-participant="{{ participant }}"
+                                    data-name="{{ player.name }}"
+                                    onclick="removePlayer(this.dataset.participant, this.dataset.name)">
                                 x
                             </button>
                         </td>
@@ -85,11 +90,16 @@
                         <td>{{ player.team }}</td>
                         <td>
                             <button class="btn-small btn-move"
-                                    onclick="movePlayer('{{ participant }}', '{{ player.name }}', 'starters')">
+                                    data-participant="{{ participant }}"
+                                    data-name="{{ player.name }}"
+                                    data-slot="starters"
+                                    onclick="movePlayer(this.dataset.participant, this.dataset.name, this.dataset.slot)">
                                 Titular
                             </button>
                             <button class="btn-small btn-danger"
-                                    onclick="removePlayer('{{ participant }}', '{{ player.name }}')">
+                                    data-participant="{{ participant }}"
+                                    data-name="{{ player.name }}"
+                                    onclick="removePlayer(this.dataset.participant, this.dataset.name)">
                                 x
                             </button>
                         </td>
@@ -110,8 +120,8 @@
         btn.classList.add('active');
     }
 
-    // Inicializar autocompletado para cada participante
     document.querySelectorAll('[data-participant]').forEach(function(inputEl) {
+        if (inputEl.tagName !== 'INPUT') return;
         var participant = inputEl.dataset.participant;
 
         function removeList() {
